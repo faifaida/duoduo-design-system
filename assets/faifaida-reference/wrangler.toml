@@ -1,0 +1,48 @@
+# ============================================================
+# DUODUO OS — Cloudflare 部署配置（人工维护的权威配置）
+# ============================================================
+# 构建产物由 `vinext build` 生成在 dist/ ：
+#   - Worker 入口：dist/server/index.js
+#   - 静态资源：   dist/client
+# 部署命令：  vinext build && wrangler deploy
+# 说明：本文件对齐 dist/server/wrangler.json 的关键字段（no_bundle /
+#       入口指向 / 自定义域名）。nodejs_compat 由 vinext 生成配置注入，此处不再重复。
+#       ⚠️ 不要改动 main / assets 指向，否则会破坏 GPT 已建好的设计构建。
+#       ⚠️ 这是发布脚手架，不触碰任何页面设计代码。
+# ============================================================
+
+name = "duoduo-os"
+compatibility_date = "2026-05-22"
+# ⚠️ 不要在此写 compatibility_flags = ["nodejs_compat"]：
+#    vinext 在部署时生成的重定向配置(dist/server/wrangler.json)已注入 nodejs_compat，
+#    源文件再写一次会被 wrangler 合并成重复 → 报错 10021。
+#    如确需覆盖，请在 vinext 构建配置里改，而非此处。
+legacy_env = true
+
+# Cloudflare Workers AI: real public DUODUO AI, no browser-side API key.
+# Keep this as an inline top-level value so the deployment fields below do not
+# accidentally become children of the AI table.
+ai = { binding = "AI" }
+
+# 你的 Cloudflare 账户 ID（dashboard 右上角 / `wrangler whoami` 查看）
+account_id = "fb5d1655f94241f941d972a593dde727"
+
+# ---- 构建产物入口（由 vinext build 生成，不要手改）----
+main = "dist/server/index.js"
+no_bundle = true
+assets = { directory = "dist/client" }
+rules = [{ type = "ESModule", globs = ["**/*.js", "**/*.mjs"] }]
+
+# ---- 自定义域名（通过 routes 绑定）----
+# 域名：faifaida.com（已注册 + 已激活，NS 在 Cloudflare）
+# ⚠️ custom_domains 不是 Workers 有效字段（wrangler 警告 "Unexpected fields"）
+#    改用 routes 直接绑定自定义域名，绕过 workers.dev 子域名
+routes = [
+  { pattern = "faifaida.com", custom_domain = true },
+  { pattern = "www.faifaida.com", custom_domain = true },
+]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "duoduo-visitor-messages"
+database_id = "3654b7fb-b4ac-47d1-8eb0-9adea676aea3"

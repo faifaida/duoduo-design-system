@@ -1,0 +1,7 @@
+interface:
+  display_name: "多多设计系统"
+  short_description: "复刻多多审美，制作网站、品牌设计、公众号与社媒视觉"
+  icon_small: "./assets/brand/current/duoduo-symbol.png"
+  icon_large: "./assets/brand/current/duoduo-symbol.png"
+  brand_color: "#00B6C5"
+  default_prompt: "Use $duoduo-design-system to create a Duoduo-style website or visual that follows the approved brand system."

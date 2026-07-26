@@ -1,0 +1,30 @@
+:root {
+  --duoduo-teal: #00b6c5;
+  --duoduo-teal-light: #1fcedd;
+  --duoduo-linen: #f1e9da;
+  --duoduo-chalcedony: #e8dcc8;
+  --duoduo-paper: #faf6ee;
+  --duoduo-logo-blue: #2e27a8;
+  --duoduo-brown: #8a6a4a;
+  --duoduo-red: #6b3a3a;
+  --duoduo-graphite: #25262b;
+  --duoduo-night: #151a2e;
+  --duoduo-gold: #c99a3f;
+  --duoduo-serif-en: "Iowan Old Style", Baskerville, "Times New Roman", serif;
+  --duoduo-serif-zh: "Songti SC", STSong, "Noto Serif CJK SC", serif;
+  --duoduo-hand: "Kaiti SC", "Bradley Hand", cursive;
+  --duoduo-content: 1180px;
+  --duoduo-section-space: clamp(72px, 10vh, 136px);
+  --duoduo-shadow: 0 12px 36px rgba(37, 38, 43, 0.1);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  color: var(--duoduo-graphite);
+  background: var(--duoduo-linen);
+  font-family: var(--duoduo-serif-zh);
+  letter-spacing: 0;
+}
+::selection { color: var(--duoduo-night); background: var(--duoduo-teal-light); }
+

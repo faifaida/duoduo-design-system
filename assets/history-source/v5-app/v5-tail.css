@@ -1,0 +1,196 @@
+/* Loaded after globals.css so the approved V5 material and navigation rules
+   remain authoritative over the older V4 polish layer. */
+
+.paper-texture {
+  background-color: #f1e9da;
+  background-image:
+    radial-gradient(circle at 18% 23%, rgba(255,255,255,.34), transparent 34%),
+    radial-gradient(circle at 74% 68%, rgba(138,106,74,.035) 0 .7px, transparent .9px),
+    repeating-linear-gradient(24deg, rgba(138,106,74,.026) 0, rgba(138,106,74,.026) 1px, transparent 1px, transparent 5px),
+    repeating-linear-gradient(112deg, rgba(255,255,255,.06) 0, rgba(255,255,255,.06) 1px, transparent 1px, transparent 8px);
+  background-size: auto, 11px 13px, auto, auto;
+  box-shadow: 0 12px 30px rgba(13,25,38,.12), inset 0 0 0 1px rgba(138,106,74,.12);
+}
+
+.voyage-portals {
+  top: -66px;
+  right: 0;
+  width: 112px;
+}
+.voyage-portals a {
+  grid-template-columns: 36px 1fr;
+  border-radius: 38% 62% 43% 57% / 59% 38% 62% 41%;
+}
+
+.chrome-ai-link {
+  display: grid;
+  place-items: center;
+}
+
+.ocean-map-page > .map-intro {
+  height: auto;
+}
+
+.stories-v5 .trunk-world {
+  min-height: 100vh;
+}
+.stories-v5 .story-drawer-sheet {
+  left: 24%;
+  top: 11%;
+  width: min(35%, 520px);
+}
+.work-v5 .studio-dossier {
+  right: 10%;
+}
+.about-v5 .guestbook-panel {
+  right: 10%;
+}
+
+@media (max-width: 780px) {
+  .chrome-contact .contact-en {
+    display: block;
+  }
+
+  .voyage-rail {
+    grid-template-columns: 58px minmax(0, 1fr);
+  }
+  .voyage-portals {
+    position: static;
+    display: block;
+    width: 54px;
+  }
+  .voyage-portals a {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 52px;
+    min-height: 52px;
+    padding: 5px;
+  }
+  .voyage-portals .portal-copy {
+    display: none;
+  }
+
+  .ocean-map-page {
+    min-height: auto;
+    padding-bottom: 0;
+  }
+  .home-drift-guide {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: calc(100% - 24px);
+    min-height: auto;
+    margin: 54px 12px 110px;
+    transform: none;
+  }
+
+  .stories-v5 .trunk-story-modes {
+    top: 122px;
+    left: 10px;
+    right: 10px;
+    display: flex;
+    width: auto;
+  }
+  .stories-v5 .story-drawer-sheet {
+    top: 470px;
+    left: 10px;
+    right: 10px;
+    width: auto;
+  }
+  .stories-v5 .trunk-brand-tag {
+    top: 290px;
+  }
+
+  .about-v5 .voyage-story-note {
+    left: 12px;
+    top: 380px;
+    right: auto;
+    bottom: auto;
+    width: calc(100% - 24px);
+    max-height: none;
+  }
+  .about-v5 .voyage-nodes {
+    top: 238px;
+    bottom: auto;
+    left: 10px;
+    right: 10px;
+    height: 128px;
+    align-items: start;
+    padding: 8px 5px 14px;
+    background: linear-gradient(90deg, rgba(21,26,46,.84), rgba(21,26,46,.45), rgba(21,26,46,.84));
+    border-block: 1px solid rgba(31,206,221,.2);
+    scrollbar-width: none;
+  }
+  .about-v5 .voyage-nodes::-webkit-scrollbar { display: none; }
+  .about-v5 .voyage-map-node,
+  .about-v5 .voyage-map-node:nth-child(n) {
+    min-height: 106px;
+    transform: none;
+  }
+  .about-v5 .voyage-opening {
+    top: 122px;
+  }
+  .about-v5 .voyage-opening span {
+    font-size: clamp(30px, 9vw, 38px);
+    line-height: 1.02;
+  }
+  .about-v5 .guestbook-panel {
+    right: 12px;
+  }
+
+  .surf-v5 .surf-wear-lab {
+    top: 1640px;
+    width: calc(100% - 24px);
+    margin-inline: 12px;
+  }
+}
+
+@media (max-width: 520px) {
+  .chrome-contact {
+    display: grid;
+    place-items: center;
+    gap: 1px;
+    min-width: 54px;
+    padding-inline: 4px;
+    white-space: normal;
+    text-align: center;
+  }
+  .chrome-contact .contact-en {
+    font-size: 6px;
+    letter-spacing: .025em;
+    line-height: 1;
+  }
+  .chrome-contact .contact-zh {
+    font-size: 8px;
+    line-height: 1;
+  }
+  .voyage-rail {
+    grid-template-columns: 58px minmax(0, 1fr);
+  }
+  .voyage-dock {
+    gap: 2px;
+    padding: 4px;
+    overflow-x: hidden;
+  }
+  .voyage-dock a {
+    flex: 1 1 0;
+    min-width: 0;
+    padding-inline: 3px;
+  }
+  .voyage-dock i {
+    width: 19px;
+    height: 19px;
+    font-size: 11px;
+  }
+  .voyage-dock .dock-label b {
+    font-size: 6.5px;
+    letter-spacing: 0;
+  }
+  .voyage-dock .dock-label small {
+    display: block;
+    font-size: 6.5px;
+  }
+  .stories-v5 .trunk-hotspot span {
+    display: grid;
+  }
+}
