@@ -433,7 +433,7 @@ const publicTools = [
     extension: ".ZIP",
     title: "DUODUO DESIGN SYSTEM",
     zh: "多多完整设计系统",
-    path: "https://raw.githubusercontent.com/faifaida/duoduo-os/main/downloads/duoduo-design-system.zip",
+    path: "https://raw.githubusercontent.com/faifaida/duoduo-design-system/main/duoduo-design-system.zip",
     downloadOnly: true,
     copy: {
       en: "The complete reusable design skill behind faifaida.com, including rules, templates, approved assets and version references.",

@@ -21,7 +21,8 @@ source reference, historical versions, templates and approved assets.
 
 Visitors can download the complete single-file package from **DUODUO OS -> TAKE
 SOMETHING**. The ZIP is hosted from
-`downloads/duoduo-design-system.zip` through GitHub Raw so Cloudflare does not
+`duoduo-design-system.zip` from the public `faifaida/duoduo-design-system`
+repository through GitHub Raw so Cloudflare does not
 need to serve the large archive as a static asset.
 
 The legacy `/stories`, `/work`, `/about` and `/surf` routes redirect into the matching `/world` scene.
