@@ -51,7 +51,7 @@
 - `ocean/duoduo-living-ocean.png`：首页与场景海面基底。
 - `scenes/`：Stories 旅行箱与 Work 田野工作站场景。
 - `photos/`：真实旅行、冲浪、Lazyland、About 与 Wear 图片。
-- `contact/`：多多OS微信、小红书与个人公众号的正式公开二维码。
+- `contact/`：多多OS微信、小红书、个人公众号、WhatsApp 二维码与个人 Instagram 照片。
 - `islands/`：五个柔和岛形 SVG，作为旧/辅助图形语言。
 - `tools/`：可公开下载的工具内容。
 

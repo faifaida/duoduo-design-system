@@ -52,8 +52,12 @@ test("keeps current mobile, contact and Skill publishing contracts", async () =>
   assert.match(scenes, /className="mobile-work-projects"/);
   assert.match(scenes, /https:\/\/www\.instagram\.com\/duoduo_wear\//);
   assert.match(unified, /https:\/\/www\.instagram\.com\/faifaida_\//);
+  assert.match(unified, /https:\/\/www\.instagram\.com\/duoduo_wear\//);
   assert.match(unified, /duoduo-wechat-official\.jpg/);
-  assert.match(unified, /raw\.githubusercontent\.com\/faifaida\/duoduo-os\/main\/downloads\/duoduo-design-system\.zip/);
+  assert.match(unified, /github\.com\/faifaida\/duoduo-design-system/);
+  assert.doesNotMatch(unified, /duoduo-design-system\.zip/);
+  assert.match(unified, /duoduo-instagram\.jpeg/);
+  assert.match(unified, /duoduo-whatsapp\.jpeg/);
   assert.match(css, /@media \(max-width: 640px\)/);
   assert.match(css, /\.contact-channels \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); \}/);
 
@@ -61,6 +65,7 @@ test("keeps current mobile, contact and Skill publishing contracts", async () =>
     access(new URL("../public/contact/duoduo-wechat.jpg", import.meta.url)),
     access(new URL("../public/contact/duoduo-xiaohongshu.jpg", import.meta.url)),
     access(new URL("../public/contact/duoduo-wechat-official.jpg", import.meta.url)),
-    access(new URL("../downloads/duoduo-design-system.zip", import.meta.url)),
+    access(new URL("../public/contact/duoduo-instagram.jpeg", import.meta.url)),
+    access(new URL("../public/contact/duoduo-whatsapp.jpeg", import.meta.url)),
   ]);
 });

@@ -19,11 +19,10 @@ The reusable design Skill behind this website is published in
 `skills/duoduo-design-system/`. It includes the current visual system, website
 source reference, historical versions, templates and approved assets.
 
-Visitors can download the complete single-file package from **DUODUO OS -> TAKE
-SOMETHING**. The ZIP is hosted from
-`duoduo-design-system.zip` from the public `faifaida/duoduo-design-system`
-repository through GitHub Raw so Cloudflare does not
-need to serve the large archive as a static asset.
+Visitors can open the complete folder from **DUODUO OS -> TAKE SOMETHING**. The
+folder is published as the public
+[`faifaida/duoduo-design-system`](https://github.com/faifaida/duoduo-design-system)
+repository so its structure, references and assets remain directly browsable.
 
 The legacy `/stories`, `/work`, `/about` and `/surf` routes redirect into the matching `/world` scene.
 

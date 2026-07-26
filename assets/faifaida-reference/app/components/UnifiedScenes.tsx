@@ -430,11 +430,11 @@ const publicTools = [
     number: "04",
     symbol: "DS",
     kind: "SKILL",
-    extension: ".ZIP",
+    extension: "DIR",
     title: "DUODUO DESIGN SYSTEM",
     zh: "多多完整设计系统",
-    path: "https://raw.githubusercontent.com/faifaida/duoduo-design-system/main/duoduo-design-system.zip",
-    downloadOnly: true,
+    path: "https://github.com/faifaida/duoduo-design-system",
+    externalOnly: true,
     copy: {
       en: "The complete reusable design skill behind faifaida.com, including rules, templates, approved assets and version references.",
       zh: "faifaida.com 背后的完整可复用设计 Skill，包含规则、模板、正式素材与历史版本参考。",
@@ -566,8 +566,8 @@ export function AiScene() {
               <div className="tool-desktop-grid">
                 {publicTools.map((tool) => {
                   const contents = <><span className="tool-file-shape" aria-hidden="true"><i>{tool.symbol}</i><small>{tool.extension}</small></span><b>{tool.title}</b><em>{tool.zh}</em><small>{tool.kind} · {tool.number}</small></>;
-                  return "downloadOnly" in tool ? (
-                    <a className={`tool-desktop-icon tool-kind-${tool.kind.toLowerCase()}`} href={tool.path} download key={tool.id} aria-label={`${tool.title} download`}>{contents}</a>
+                  return "externalOnly" in tool ? (
+                    <a className={`tool-desktop-icon tool-kind-${tool.kind.toLowerCase()}`} href={tool.path} target="_blank" rel="noreferrer" key={tool.id} aria-label={`${tool.title} folder`}>{contents}</a>
                   ) : (
                     <button type="button" className={`tool-desktop-icon tool-kind-${tool.kind.toLowerCase()}`} key={tool.id} onClick={() => void openTool(tool)}>{contents}</button>
                   );
@@ -617,8 +617,14 @@ export function AiScene() {
                   <span>XHS · 03</span><img src="/contact/duoduo-xiaohongshu.jpg" alt="多多OS小红书二维码" /><b>小红书</b><small>多多OS ↗</small>
                 </a>
                 <a href="https://www.instagram.com/faifaida_/" target="_blank" rel="noreferrer">
-                  <span>IG · 04</span><b>Instagram</b><small>@faifaida_ ↗</small>
+                  <span>IG · 04</span><img className="contact-profile-photo" src="/contact/duoduo-instagram.jpeg" alt="多多和拉斐" /><b>Instagram</b><small>@faifaida_ ↗</small>
                 </a>
+                <a href="https://www.instagram.com/duoduo_wear/" target="_blank" rel="noreferrer">
+                  <span>WEAR IG · 05</span><img className="contact-brand-logo" src="/brand/duoduo-wear-full-logo.jpeg" alt="DUODUO WEAR logo" /><b>DUODUO WEAR</b><small>@duoduo_wear ↗</small>
+                </a>
+                <div className="contact-channel-static">
+                  <span>WHATSAPP · 06</span><img className="contact-whatsapp-qr" src="/contact/duoduo-whatsapp.jpeg" alt="Faye WhatsApp 二维码" /><b>WhatsApp</b><small>Faye · 扫码联系</small>
+                </div>
               </div>
             </section>
           )}

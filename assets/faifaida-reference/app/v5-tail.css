@@ -2371,7 +2371,7 @@
   line-height: 1.18;
 }
 .now-panel small { font-size: 7px; }
-.contact-panel { max-width: 600px; }
+.contact-panel { max-width: 760px; }
 .contact-panel p {
   font-size: clamp(17px, 2vw, 28px);
   line-height: 1.48;
@@ -2409,7 +2409,8 @@
   }
   .tool-desktop-icon > b { max-width: 110px; font-size: 8px; }
   .tool-file-shape { width: 43px; height: 52px; }
-  .tool-kind-workflow .tool-file-shape { width: 52px; height: 37px; }
+  .tool-kind-workflow .tool-file-shape,
+  .tool-kind-skill .tool-file-shape { width: 52px; height: 37px; }
   .tool-kind-template .tool-file-shape { width: 46px; height: 46px; }
   .tool-desktop-empty > small { display: none; }
   .tool-preview-window { inset: 10px; }
@@ -2567,7 +2568,7 @@
 
 .contact-channels {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 9px;
   margin-top: 26px;
   padding-top: 17px;
@@ -2604,12 +2605,15 @@
 }
 .contact-channels img {
   width: 100%;
-  max-width: 118px;
+  max-width: 148px;
   aspect-ratio: 1;
   margin-top: 9px;
   object-fit: contain;
   background: #fff;
 }
+.contact-channels .contact-profile-photo { object-fit: cover; }
+.contact-channels .contact-brand-logo { object-fit: contain; }
+.contact-channels .contact-whatsapp-qr { object-fit: contain; }
 .contact-channels small {
   margin-top: 8px;
   overflow-wrap: anywhere;
@@ -2619,10 +2623,29 @@
 }
 .tool-desktop-icon { text-decoration: none; }
 .tool-kind-skill .tool-file-shape {
+  width: 58px;
+  height: 40px;
+  margin-top: 14px;
+  border-radius: 3px;
   border-color: rgba(201,154,63,.85);
   color: var(--gold);
-  background: linear-gradient(145deg, rgba(107,58,58,.42), rgba(11,17,32,.96));
+  background:
+    repeating-linear-gradient(0deg, transparent 0 7px, rgba(201,154,63,.08) 8px 9px),
+    linear-gradient(145deg, rgba(107,58,58,.42), rgba(11,17,32,.96));
 }
+.tool-kind-skill .tool-file-shape::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: -8px;
+  width: 24px;
+  height: 9px;
+  border: 1px solid rgba(201,154,63,.85);
+  border-bottom: 0;
+  border-radius: 3px 5px 0 0;
+  background: #181529;
+}
+.tool-kind-skill .tool-file-shape::after { display: none; }
 
 .wear-detail-actions {
   display: flex;
