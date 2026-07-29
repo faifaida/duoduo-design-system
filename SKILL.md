@@ -9,6 +9,8 @@ description: 多多（DUODUO / faifaida.com）的完整个人与公司视觉设�
 
 核心判断：**野而温柔，原始而精致，自由而有骨头，手作而有世界。**
 
+**审美锚点（先读这份）**：`references/unified-aesthetic.md` 是所有产出的统一审美真值表——颜色、字体、材质、母题、布局、海报铁律、红线、agent 执行清单全部收敛在一处。动手前先读完它，再查下面的专项文件。
+
 ## 先判断任务
 
 将任务归入一个主类型：
@@ -33,11 +35,12 @@ description: 多多（DUODUO / faifaida.com）的完整个人与公司视觉设�
 
 ## 必读路由
 
-每个设计任务先读：
+每个设计任务**先读** `references/unified-aesthetic.md`（统一审美锚点），然后按任务追加：
 
 - `references/identity-and-voice.md`：品牌命题、受众、文案与双语规则。
-- `references/visual-system.md`：颜色、字体、材质、摄影、母题与禁忌。
+- `references/visual-system.md`：颜色、字体、材质、摄影、母题与禁忌（锚点的展开版）。
 - `references/asset-catalog.md`：正式资产、参考资产、历史资产的位置与用法。
+- 海报 / 产品图：锚点第 7 节「产品 / 海报视觉铁律」是硬规则，不另起炉灶。
 
 按任务追加读取：
 
