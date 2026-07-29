@@ -8,7 +8,7 @@
 
 - `assets/brand/current/`：当前个人品牌 symbol 与 DUODUO WEAR full logo。个人品牌字标按站点源码中的 lockup 规范排版，不使用旧裁切图。
 - `assets/wear-product/`：DUODUO WEAR 品牌产品海报与招募视觉。已审核可直发级成品，含品牌 logo 锁定版（bottom-edge linen 色带 + full logo lockup 居中）。当前资产：
-  - `DUODUO_WEAR_v2_recruitment_poster_logo_768x1074.png.png.png.png`：v2 试穿招募海报（泳衣平铺暖米亚麻+深蓝海+teal 绳带，底部 linen #F1E9DA 色带居中放置 duoduo-wear-full-logo）。
+  - `DUODUO_WEAR_v2_recruitment_poster_logo_768x1074.png`：v2 试穿招募海报（泳衣平铺暖米亚麻+深蓝海+teal 绳带，底部 linen #F1E9DA 色带居中放置 duoduo-wear-full-logo）。
 - `assets/site-media/public/`：当前网站公开图片、岛屿 SVG、场景图、海洋图和工具文件。
 - `assets/faifaida-reference/`：当前线上完整源码快照。
 
