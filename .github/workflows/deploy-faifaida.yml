@@ -1,0 +1,37 @@
+name: Deploy faifaida.com
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "assets/faifaida-reference/**"
+      - "assets/site-media/public/**"
+      - ".github/workflows/deploy-faifaida.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: faifaida-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: assets/faifaida-reference
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: assets/faifaida-reference/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run deploy:cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

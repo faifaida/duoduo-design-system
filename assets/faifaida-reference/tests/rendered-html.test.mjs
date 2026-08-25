@@ -69,3 +69,89 @@ test("keeps current mobile, contact and Skill publishing contracts", async () =>
     access(new URL("../public/contact/duoduo-whatsapp.jpeg", import.meta.url)),
   ]);
 });
+
+test("publishes the growing divergent universe through TAKE SOMETHING", async () => {
+  const [response, unified, universe, worker] = await Promise.all([
+    render("/ai/universe"),
+    readFile(new URL("../app/components/UnifiedScenes.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/ai/DivergentUniverse.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../worker/index.ts", import.meta.url), "utf8"),
+  ]);
+
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /DIVERGENT UNIVERSE/);
+  assert.match(html, /此刻，你想从什么开始？/);
+  assert.match(unified, /path: "\/ai\/universe"/);
+  assert.match(unified, /href=\{tool\.path\}/);
+  assert.match(universe, /keepAndBranch/);
+  assert.match(universe, /focusRetained/);
+  assert.match(universe, /dissolveAt/);
+  assert.match(universe, /openIndependentDraft/);
+  assert.match(universe, /startLongPress/);
+  assert.match(universe, /clamp\(labels\.length, 4, 6\)/);
+  assert.doesNotMatch(universe, />都不要</);
+  assert.doesNotMatch(universe, />换一批</);
+  assert.doesNotMatch(universe, /候选操作/);
+  assert.match(worker, /url\.pathname === "\/api\/divergent-universe"/);
+  assert.match(worker, /completeDivergentNodes/);
+  assert.match(worker, /assisted-fallback/);
+  assert.match(worker, /不得连续使用中心词作前缀/);
+  assert.match(worker, /nearDuplicate/);
+});
+
+test("keeps the divergent universe available when the upstream AI tide is quiet", async () => {
+  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
+  workerUrl.searchParams.set("fallback-test", `${process.pid}-${Date.now()}`);
+  const { default: worker } = await import(workerUrl.href);
+  const response = await worker.fetch(
+    new Request("http://localhost/api/divergent-universe", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "http://localhost" },
+      body: JSON.stringify({ center: "海边学校", avoid: [] }),
+    }),
+    {
+      ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) },
+      AI: { run: async () => { throw new Error("AI tide unavailable"); } },
+    },
+    { waitUntil() {}, passThroughOnException() {} },
+  );
+  const data = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(data.source, "assisted-fallback");
+  assert.equal(data.nodes.length, 10);
+  assert.equal(new Set(data.nodes).size, 10);
+});
+
+test("filters repeated AI associations before they reach the universe", async () => {
+  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
+  workerUrl.searchParams.set("diversity-test", `${process.pid}-${Date.now()}`);
+  const { default: worker } = await import(workerUrl.href);
+  const labels = [
+    "太极养生", "太极哲学", "阴阳", "八卦图", "松沉", "金刚经",
+    "武当山", "云手", "潮汐", "黑白鱼", "柔克刚", "呼吸节律",
+  ];
+  const response = await worker.fetch(
+    new Request("http://localhost/api/divergent-universe", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "http://localhost" },
+      body: JSON.stringify({ center: "太极", avoid: [] }),
+    }),
+    {
+      ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) },
+      AI: {
+        run: async () => ({
+          response: JSON.stringify({
+            nodes: labels.map((label) => ({ label, bridge: `${label}与中心存在一条具体可解释的连接` })),
+          }),
+        }),
+      },
+    },
+    { waitUntil() {}, passThroughOnException() {} },
+  );
+  const data = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(data.nodes.length, 10);
+  assert.equal(new Set(data.nodes).size, 10);
+  assert.ok(data.nodes.filter((label) => label.startsWith("太极")).length <= 1);
+});
