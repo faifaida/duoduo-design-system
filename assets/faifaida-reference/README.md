@@ -50,14 +50,16 @@ Local Workers AI proxy calls may fail even when the production binding is health
 
 ## Deploy
 
+This directory is the production source of truth. Merging its deployment
+workflow to the repository's `main` branch automatically builds and deploys the
+site to Cloudflare; do not maintain a second copy in Sites.
+
 ```bash
-npm run build
-npx wrangler deploy
+npm run build:cloudflare
+npm run deploy:cloudflare
 ```
 
 Production: [faifaida.com](https://faifaida.com)
-
-Current production version: `811caab7-f31a-44c8-baee-e5a19f253f7b`
 
 Global audio is synthesized locally: seashell chime and water drop for controls,
 with a distinct quiet shore-wave sound for page passages.

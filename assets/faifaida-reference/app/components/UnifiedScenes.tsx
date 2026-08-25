@@ -444,6 +444,25 @@ const publicTools = [
       fr: "Le Skill de design réutilisable complet derrière faifaida.com.",
     },
   },
+  {
+    id: "divergent-universe",
+    number: "05",
+    symbol: "✦",
+    kind: "APP",
+    extension: ".LIVE",
+    title: "DIVERGENT UNIVERSE",
+    zh: "发散宇宙",
+    path: "/ai/universe",
+    directLink: true,
+    copy: {
+      en: "Begin with one thought. Let AI place possible directions around it, then keep moving through whichever node catches you.",
+      zh: "从一个念头开始，让 AI 把可能的方向放在四周；点中任何一个，它就成为新的中心。",
+      ko: "하나의 생각에서 시작해 AI가 주변에 놓은 방향을 따라 계속 확장합니다.",
+      ja: "一つの思いから始め、AI が周囲に置く方向をたどって発散を続けます。",
+      es: "Empieza con una idea y sigue expandiéndola a través de los nodos que coloca la IA.",
+      fr: "Pars d’une idée et poursuis son expansion à travers les nœuds proposés par l’IA.",
+    },
+  },
 ] as const;
 
 export function AiScene() {
@@ -465,18 +484,20 @@ export function AiScene() {
 
   useEffect(() => {
     const scrollToAi = () => {
-      if (typeof window !== "undefined" && window.location.hash === "#contact") {
-        setTab("contact");
-        document.getElementById("ai")?.scrollIntoView({ behavior: "smooth" });
-      }
+      if (typeof window === "undefined") return;
+      const hashTab = window.location.hash.replace("#", "");
+      if (hashTab === "ask" || hashTab === "take" || hashTab === "now" || hashTab === "contact") setTab(hashTab);
+      if (hashTab) document.getElementById("ai")?.scrollIntoView({ behavior: "smooth" });
     };
     scrollToAi();
+    window.addEventListener("hashchange", scrollToAi);
+    return () => window.removeEventListener("hashchange", scrollToAi);
   }, []);
 
   const ask = async () => {
     const prompt = question.trim();
     if (!prompt || pending) return;
-    const nextHistory: PublicAiMessage[] = [...history, { role: "user", content: prompt }].slice(-8);
+    const nextHistory: PublicAiMessage[] = [...history, { role: "user" as const, content: prompt }].slice(-8);
     setQuestion("");
     setPending(true);
     const controller = new AbortController();
@@ -491,7 +512,7 @@ export function AiScene() {
       const data = await response.json() as { answer?: string; error?: string };
       if (!response.ok || !data.answer) throw new Error(data.error || "Workers AI request failed");
       setAnswer(data.answer);
-      setHistory([...nextHistory, { role: "assistant", content: data.answer }].slice(-8));
+      setHistory([...nextHistory, { role: "assistant" as const, content: data.answer }].slice(-8));
     } catch {
       setAnswer(text(content.ai.askError, locale === "original" ? "zh" : "en"));
     } finally {
@@ -568,6 +589,8 @@ export function AiScene() {
                   const contents = <><span className="tool-file-shape" aria-hidden="true"><i>{tool.symbol}</i><small>{tool.extension}</small></span><b>{tool.title}</b><em>{tool.zh}</em><small>{tool.kind} · {tool.number}</small></>;
                   return "externalOnly" in tool ? (
                     <a className={`tool-desktop-icon tool-kind-${tool.kind.toLowerCase()}`} href={tool.path} target="_blank" rel="noreferrer" key={tool.id} aria-label={`${tool.title} folder`}>{contents}</a>
+                  ) : "directLink" in tool ? (
+                    <a className={`tool-desktop-icon tool-kind-${tool.kind.toLowerCase()}`} href={tool.path} key={tool.id} aria-label={`${tool.title} · ${tool.zh}`}>{contents}</a>
                   ) : (
                     <button type="button" className={`tool-desktop-icon tool-kind-${tool.kind.toLowerCase()}`} key={tool.id} onClick={() => void openTool(tool)}>{contents}</button>
                   );
@@ -576,7 +599,7 @@ export function AiScene() {
                 <span className="tool-desktop-empty is-document"><i>＋</i><b>PROMPTS</b><small>更多公开提示词文档</small></span>
                 <span className="tool-desktop-empty is-app"><i>＋</i><b>WORKFLOWS</b><small>持续生长的工作流应用</small></span>
               </div>
-              <footer><span>04 OBJECTS ONLINE</span><b>OPEN OR DOWNLOAD · 打开或下载</b><i>SPACE RESERVED FOR MORE ↓</i></footer>
+              <footer><span>05 OBJECTS ONLINE</span><b>OPEN, DOWNLOAD OR ENTER · 打开、下载或进入</b><i>SPACE RESERVED FOR MORE ↓</i></footer>
 
               {toolPreview && (
                 <motion.div className="tool-preview-window" role="dialog" aria-modal="true" aria-label={`${toolPreview.title} preview`} initial={{ opacity: 0, scale: .97, y: 12 }} animate={{ opacity: 1, scale: 1, y: 0 }}>
