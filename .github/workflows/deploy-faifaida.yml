@@ -3,6 +3,10 @@ name: Deploy faifaida.com
 on:
   push:
     branches: [main]
+    paths:
+      - "assets/faifaida-reference/**"
+      - "assets/site-media/public/**"
+      - ".github/workflows/deploy-faifaida.yml"
   workflow_dispatch:
 
 concurrency:
