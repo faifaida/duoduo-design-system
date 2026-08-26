@@ -119,8 +119,8 @@ test("keeps the divergent universe available when the upstream AI tide is quiet"
   const data = await response.json();
   assert.equal(response.status, 200);
   assert.equal(data.source, "assisted-fallback");
-  assert.equal(data.nodes.length, 10);
-  assert.equal(new Set(data.nodes).size, 10);
+  assert.equal(data.nodes.length, 6);
+  assert.equal(new Set(data.nodes).size, 6);
 });
 
 test("filters repeated AI associations before they reach the universe", async () => {
@@ -151,7 +151,30 @@ test("filters repeated AI associations before they reach the universe", async ()
   );
   const data = await response.json();
   assert.equal(response.status, 200);
-  assert.equal(data.nodes.length, 10);
-  assert.equal(new Set(data.nodes).size, 10);
+  assert.equal(data.nodes.length, 6);
+  assert.equal(new Set(data.nodes).size, 6);
   assert.ok(data.nodes.filter((label) => label.startsWith("太极")).length <= 1);
+});
+
+test("recovers labels from truncated AI JSON without leaking JSON keys", async () => {
+  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
+  workerUrl.searchParams.set("truncated-json-test", `${process.pid}-${Date.now()}`);
+  const { default: worker } = await import(workerUrl.href);
+  const response = await worker.fetch(
+    new Request("http://localhost/api/divergent-universe", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "http://localhost" },
+      body: JSON.stringify({ center: "二十四节气", avoid: [] }),
+    }),
+    {
+      ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) },
+      AI: { run: async () => ({ response: '{"nodes":[{"label":"候鸟迁徙","bridge":"季节改变迁徙方向"},{"label":"身体节律","bridge":"身体也会感知季节"},{"label":"月相","bridge":"古老历法观察天体"' }) },
+    },
+    { waitUntil() {}, passThroughOnException() {} },
+  );
+  const data = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(data.nodes.length, 6);
+  assert.ok(data.nodes.includes("候鸟迁徙"));
+  assert.ok(data.nodes.every((label) => !/["{}\[\]]|nodes|bridge/.test(label)));
 });

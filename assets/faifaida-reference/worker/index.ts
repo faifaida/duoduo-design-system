@@ -126,7 +126,15 @@ function parseDivergentNodes(raw: string, center: string, avoid: string[]) {
     }
   }
 
-  if (!values.length) values = withoutFences.split(/\r?\n|[,，]/);
+  if (!values.length) {
+    const recoveredLabels = [...withoutFences.matchAll(/["']?label["']?\s*:\s*["“]([^"”\r\n]{2,20})["”]/gi)]
+      .map((match) => match[1]);
+    values = recoveredLabels.length
+      ? recoveredLabels
+      : withoutFences
+        .split(/\r?\n|[,，]/)
+        .filter((value) => !/[{}\[\]"]|\b(nodes|label|bridge)\b/i.test(value));
+  }
 
   const normalize = (value: string) => cleanPlainText(value, 36)
     .toLocaleLowerCase()
@@ -177,7 +185,7 @@ function parseDivergentNodes(raw: string, center: string, avoid: string[]) {
     if (startsWithCentre) centrePrefixCount += 1;
     unique.add(key);
     nodes.push(cleaned);
-    if (nodes.length === 10) break;
+    if (nodes.length === 6) break;
   }
 
   return nodes;
@@ -200,7 +208,7 @@ function completeDivergentNodes(nodes: string[], center: string, avoid: string[]
   const completed = [...nodes];
   const offset = Array.from(center).reduce((sum, char) => sum + char.charCodeAt(0), 0) % associationNet.length;
 
-  for (let index = 0; index < associationNet.length && completed.length < 10; index += 1) {
+  for (let index = 0; index < associationNet.length && completed.length < 6; index += 1) {
     const candidate = associationNet[(index + offset) % associationNet.length];
     const key = candidate.toLocaleLowerCase();
     if (blocked.has(key)) continue;
@@ -208,7 +216,7 @@ function completeDivergentNodes(nodes: string[], center: string, avoid: string[]
     completed.push(candidate);
   }
 
-  return completed.slice(0, 10);
+  return completed.slice(0, 6);
 }
 
 const containsUrl = (value: string) => /(https?:\/\/|www\.|[a-z0-9-]+\.(com|cn|net|org|io)\b)/i.test(value);
@@ -430,7 +438,7 @@ const worker = {
           console.warn("Divergent AI used the local association net", error instanceof Error ? error.message : "Unknown error");
         }
 
-        if (nodes.length < 10) source = "assisted-fallback";
+        if (nodes.length < 4) source = "assisted-fallback";
         nodes = completeDivergentNodes(nodes, center, avoid);
         return Response.json({ nodes, source });
       } catch (error) {
