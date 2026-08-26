@@ -130,6 +130,19 @@ test("keeps the divergent universe available when the upstream AI tide is quiet"
   assert.equal(new Set(data.nodes).size, 5);
 });
 
+test("keeps fallback associations visibly connected to familiar objects", async () => {
+  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
+  workerUrl.searchParams.set("object-fallback-test", `${process.pid}-${Date.now()}`);
+  const { default: worker } = await import(workerUrl.href);
+  const response = await worker.fetch(new Request("http://localhost/api/divergent-universe", {
+    method: "POST", headers: { "content-type": "application/json", origin: "http://localhost" },
+    body: JSON.stringify({ center: "袜子", avoid: [] }),
+  }), { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) }, AI: { run: async () => { throw new Error("offline"); } } }, { waitUntil() {}, passThroughOnException() {} });
+  const data = await response.json();
+  assert.equal(response.status, 200);
+  assert.deepEqual(data.nodes.slice(0, 2), ["鞋子", "穿搭"]);
+});
+
 test("filters repeated AI associations before they reach the universe", async () => {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("diversity-test", `${process.pid}-${Date.now()}`);

@@ -14,6 +14,7 @@ type OrganizationPage = { id: string; kind: "organization"; title: string; sourc
 type Page = UniversePage | OrganizationPage;
 type Workspace = { version: 2; anonymousId: string; activePageId: string; pages: Page[] };
 type DraftRoot = Point & { value: string };
+type ChatMessage = { role: "user" | "assistant"; content: string };
 
 const STORAGE_KEY = "duoduo-divergent-workspace-v2";
 const NODE_KINDS: NodeKind[] = ["bubble", "island", "star"];
@@ -56,6 +57,38 @@ function makeOrbit(labels: string[], active: UniverseNode, occupied: UniverseNod
   return placed;
 }
 
+function settlePage(page: UniversePage) {
+  const retainedIds = new Set(page.retained.map((node) => node.id));
+  const original = new Map([...page.retained, ...page.candidates].map((node) => [node.id, { x: node.x, y: node.y }]));
+  const nodes = [...page.retained, ...page.candidates].map((node) => ({ ...node }));
+  const byId = () => new Map(nodes.map((node) => [node.id, node]));
+  for (let pass = 0; pass < 34; pass += 1) {
+    const lookup = byId();
+    for (let a = 0; a < nodes.length; a += 1) for (let b = a + 1; b < nodes.length; b += 1) {
+      const left = nodes[a], right = nodes[b], dx = right.x - left.x || .01, dy = right.y - left.y || .01;
+      const gap = Math.hypot(dx, dy), required = nodeRadius(left, page.activeId) + nodeRadius(right, page.activeId) + 24;
+      if (gap >= required) continue;
+      const push = (required - gap) * .52, ux = dx / gap, uy = dy / gap;
+      const leftWeight = retainedIds.has(left.id) ? .12 : .55, rightWeight = retainedIds.has(right.id) ? .12 : .55;
+      left.x -= ux * push * leftWeight; left.y -= uy * push * leftWeight;
+      right.x += ux * push * rightWeight; right.y += uy * push * rightWeight;
+    }
+    for (const node of nodes) {
+      const parent = node.parentId ? lookup.get(node.parentId) : null;
+      if (parent) {
+        const dx = node.x - parent.x, dy = node.y - parent.y, length = Math.max(1, Math.hypot(dx, dy));
+        const target = retainedIds.has(node.id) ? 132 : 148, pull = (length - target) * (retainedIds.has(node.id) ? .012 : .035);
+        node.x -= dx / length * pull; node.y -= dy / length * pull;
+      }
+      const start = original.get(node.id)!;
+      const maxDrift = retainedIds.has(node.id) ? 24 : 180, drift = distance(node, start);
+      if (drift > maxDrift) { node.x = start.x + (node.x - start.x) / drift * maxDrift; node.y = start.y + (node.y - start.y) / drift * maxDrift; }
+    }
+  }
+  const positions = new Map(nodes.map((node) => [node.id, node]));
+  return { ...page, retained: page.retained.map((node) => ({ ...node, ...positions.get(node.id) })), candidates: page.candidates.map((node) => ({ ...node, ...positions.get(node.id) })) };
+}
+
 function segmentDistance(point: Point, start: Point, end: Point) {
   const dx = end.x - start.x, dy = end.y - start.y, squared = dx * dx + dy * dy;
   if (!squared) return distance(point, start);
@@ -78,6 +111,10 @@ export function DivergentUniverse() {
   const [editValue, setEditValue] = useState("");
   const [sliceLine, setSliceLine] = useState<{ start: Point; end: Point } | null>(null);
   const [historyCount, setHistoryCount] = useState(0);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatDraft, setChatDraft] = useState("");
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatBusy, setChatBusy] = useState(false);
   const workspaceRef = useRef(workspace);
   const history = useRef<Workspace[]>([]);
   const stageRef = useRef<HTMLElement | null>(null);
@@ -130,7 +167,7 @@ export function DivergentUniverse() {
       setWithoutHistory((current) => updateUniverse(current, pageId, (page) => {
         const base = replace ? page.candidates.filter((node) => node.parentId !== centre.id) : page.candidates;
         const labels = data.nodes!.filter((label) => ![...page.retained, ...base].some((node) => node.label === label));
-        return { ...page, candidates: [...base, ...makeOrbit(labels, centre, [...page.retained, ...base], version)] };
+        return settlePage({ ...page, candidates: [...base, ...makeOrbit(labels, centre, [...page.retained, ...base], version)] });
       }));
       setStatus("单击候选保留 · 双击气泡继续发散 · 快速划过删除 · 长按编辑");
     } catch { setStatus("这一圈暂时没有出现。双击中心，再听一次潮汐。"); }
@@ -144,7 +181,7 @@ export function DivergentUniverse() {
     setSeed(""); window.setTimeout(() => void generate(universe.id, root.id), 0);
   };
   const retainCandidate = (pageId: string, candidateId: string) => {
-    mutate((current) => updateUniverse(current, pageId, (page) => { const candidate = page.candidates.find((node) => node.id === candidateId); if (!candidate) return page; return { ...page, retained: [...page.retained, { ...candidate, id: uid("kept") }], candidates: page.candidates.filter((node) => node.id !== candidateId) }; }));
+    mutate((current) => updateUniverse(current, pageId, (page) => { const candidate = page.candidates.find((node) => node.id === candidateId); if (!candidate) return page; return settlePage({ ...page, retained: [...page.retained, { ...candidate, id: uid("kept") }], candidates: page.candidates.filter((node) => node.id !== candidateId) }); }));
     setStatus("已经留下。双击它，才会成为新中心并长出五个候选。");
   };
   const promoteCandidate = (pageId: string, candidateId: string) => {
@@ -269,25 +306,49 @@ export function DivergentUniverse() {
       setStatus(automatic ? "AI 已在底部生成整理快照，没有改变当前宇宙。" : "整理快照已经生成。");
     } catch { setStatus("整理暂时没有完成，原宇宙完全没有变化，可以稍后再试。"); } finally { organizing.current.delete(source.id); }
   };
-  /* eslint-disable react-hooks/exhaustive-deps */
-  useEffect(() => { if (!hydrated || !universe || universe.retained.length < 12 || universe.organizedAt > 0 || organizing.current.has(universe.id)) return; void organizePage(universe, true); }, [hydrated, universe?.id, universe?.retained.length, universe?.organizedAt]);
-  /* eslint-enable react-hooks/exhaustive-deps */
-
   const createPage = () => { const page = freshUniverse(); mutate((current) => ({ ...current, activePageId: page.id, pages: [...current.pages, page] })); setSeed(""); setDraftRoot(null); setEditingId(null); };
   const switchPage = (pageId: string) => { mutate((current) => ({ ...current, activePageId: pageId })); setDraftRoot(null); setEditingId(null); };
   const jumpToSource = (sourcePageId: string, nodeId: string) => mutate((current) => ({ ...current, activePageId: sourcePageId, pages: current.pages.map((page) => page.id === sourcePageId && page.kind === "universe" ? { ...page, activeId: nodeId } : page) }));
   const copyCluster = (cluster: OrganizationCluster) => { if (!organization) return; const sourceNodes = cluster.nodeIds.map((id) => organization.nodes.find((node) => node.id === id)).filter(Boolean) as UniverseNode[]; if (!sourceNodes.length) return; const root = { ...sourceNodes[0], id: uid("root"), x: 0, y: 0, parentId: null }; const page: UniversePage = { ...freshUniverse(), title: cluster.title, retained: [root], activeId: root.id }; mutate((current) => ({ ...current, activePageId: page.id, pages: [...current.pages, page] })); };
 
+  const refreshOrganization = async () => {
+    if (!organization || organizing.current.has(organization.id)) return;
+    const source = workspaceRef.current.pages.find((page) => page.id === organization.sourcePageId);
+    if (!source || source.kind !== "universe" || source.retained.length < 4) return;
+    organizing.current.add(organization.id); setStatus("正在补进最新留下的气泡……");
+    try {
+      const response = await fetch("/api/divergent-organize", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: source.title, nodes: source.retained.map(({ id, label }) => ({ id, label })) }) });
+      const data = await response.json() as { title: string; summary: string; clusters: OrganizationCluster[]; newInsights: string[] };
+      if (!response.ok || !Array.isArray(data.clusters)) throw new Error("Organization failed");
+      mutate((current) => ({ ...current, pages: current.pages.map((page) => page.id === organization.id && page.kind === "organization" ? { ...page, title: data.title || page.title, sourceNodeCount: source.retained.length, nodes: source.retained, summary: data.summary, clusters: data.clusters, newInsights: data.newInsights ?? [], createdAt: timestamp() } : page) }));
+      setStatus(`已补充到 ${source.retained.length} 个节点。`);
+    } catch { setStatus("这次刷新没有完成，旧整理仍然保留。"); } finally { organizing.current.delete(organization.id); }
+  };
+
+  const sendChat = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); const content = chatDraft.trim(); if (!content || chatBusy) return;
+    const contextNodes = universe?.retained.map((node) => node.label) ?? organization?.nodes.map((node) => node.label) ?? [];
+    const userMessage: ChatMessage = { role: "user", content };
+    const contextMessage: ChatMessage = { role: "user", content: `当前发散宇宙：${contextNodes.slice(-60).join("、") || "尚无节点"}\n用户的问题：${content}` };
+    const visible = [...chatMessages, userMessage]; setChatMessages(visible); setChatDraft(""); setChatBusy(true);
+    try {
+      const response = await fetch("/api/duoduo-ai", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ messages: [...chatMessages.slice(-5), contextMessage] }) });
+      const data = await response.json() as { answer?: string; error?: string }; if (!response.ok || !data.answer) throw new Error(data.error);
+      setChatMessages((current) => [...current, { role: "assistant", content: data.answer! }]);
+    } catch { setChatMessages((current) => [...current, { role: "assistant", content: "这次没有接上潮汐。你的宇宙仍然完整，可以再问一次。" }]); } finally { setChatBusy(false); }
+  };
+
   const viewportStyle = universe ? { "--universe-zoom": zoom * universe.camera.scale, "--universe-mobile-zoom": Math.max(.54, zoom * .83 * universe.camera.scale), "--camera-x": `${universe.camera.x}px`, "--camera-y": `${universe.camera.y}px` } as CSSProperties : undefined;
   const worldStyle = active ? { transform: `translate(${-active.x}px, ${-active.y}px)` } as CSSProperties : undefined;
-  const organizeReady = universe && universe.retained.length >= 12 && universe.retained.length >= universe.organizedAt + 6;
+  const organizeReady = universe && universe.retained.length >= 4;
 
   return <main className={styles.page} data-hydrated={hydrated}>
     <div className={styles.paperNoise} aria-hidden="true" />
     <header className={styles.atlasHeader}><span>DUODUO OS · LIVE TOOL 05</span><h1>DIVERGENT UNIVERSE <b>发散宇宙</b></h1><p>留下想要的，让宇宙在每一次触碰里变大。</p></header>
     <a className={styles.backLink} href="/ai#take">↙ DUODUO OS / TAKE SOMETHING</a>
+    <div className={styles.topTools}>{organizeReady && <button type="button" onClick={() => void organizePage(universe)} aria-label="整理当前宇宙">✦<span>整理</span></button>}{organization && <><button type="button" onClick={() => switchPage(organization.sourcePageId)}>←<span>原宇宙</span></button><button type="button" onClick={() => void refreshOrganization()}>↻<span>补充最新</span></button></>}</div>
     {organization ? <section className={styles.organizationView} aria-label="AI 整理快照">
-      <div className={styles.organizationIntro}><span>AI SNAPSHOT · {new Date(organization.createdAt).toLocaleDateString("zh-CN")}</span><h2>{organization.title}</h2><p>{organization.summary}</p></div>
+      <div className={styles.organizationIntro}><span>AI SNAPSHOT · {new Date(organization.createdAt).toLocaleDateString("zh-CN")} · {organization.sourceNodeCount} 个节点</span><h2>{organization.title}</h2><p>{organization.summary}</p></div>
       <div className={styles.clusterGrid}>{organization.clusters.map((cluster, index) => <article className={styles.clusterIsland} key={`${cluster.title}-${index}`}>
         <input aria-label="编辑主题名称" value={cluster.title} onChange={(event) => setWithoutHistory((current) => ({ ...current, pages: current.pages.map((page) => page.id === organization.id && page.kind === "organization" ? { ...page, clusters: page.clusters.map((item, itemIndex) => itemIndex === index ? { ...item, title: event.target.value } : item) } : page) }))} />
         <p>{cluster.insight}</p><div>{cluster.nodeIds.map((id) => { const node = organization.nodes.find((item) => item.id === id); return node ? <button type="button" key={id} onClick={() => jumpToSource(organization.sourcePageId, id)}>{node.label}</button> : null; })}</div>
@@ -308,11 +369,11 @@ export function DivergentUniverse() {
       </motion.div></div>}
     </section> : null}
     <p className={styles.status} aria-live="polite">{status}</p>
+    <aside className={`${styles.chatPanel} ${chatOpen ? styles.chatOpen : ""}`}><button type="button" className={styles.chatToggle} onClick={() => setChatOpen((open) => !open)} aria-expanded={chatOpen}>AI<span>{chatOpen ? "收起" : "聊聊"}</span></button>{chatOpen && <div className={styles.chatBody}><header><b>和这个宇宙聊聊</b><small>AI 会读取当前已保留节点</small></header><div className={styles.chatMessages}>{chatMessages.length ? chatMessages.map((message, index) => <p key={`${message.role}-${index}`} data-role={message.role}>{message.content}</p>) : <p data-role="assistant">你可以告诉我：这次发散是为了什么，或者让我寻找缺少的方向。</p>}</div><form onSubmit={sendChat}><textarea value={chatDraft} onChange={(event) => setChatDraft(event.target.value)} placeholder="补充你的 context…" rows={3} /><button type="submit" disabled={chatBusy || !chatDraft.trim()}>{chatBusy ? "…" : "发送"}</button></form></div>}</aside>
     <nav className={styles.pageDock} aria-label="宇宙页面">
       <button type="button" className={styles.undoBubble} onClick={undo} disabled={!historyCount} aria-label="撤回上一步">↶<small>撤回</small></button>
       <div className={styles.pageScroller}>{workspace.pages.map((page, index) => <button type="button" key={page.id} className={`${styles.pageBubble} ${page.id === workspace.activePageId ? styles.currentPage : ""} ${page.kind === "organization" ? styles.organizationPageBubble : ""}`} onClick={() => switchPage(page.id)}><small>{page.kind === "organization" ? "整理" : String(index + 1).padStart(2, "0")}</small><span>{page.title}</span></button>)}</div>
       {universe && <button type="button" className={styles.addPageBubble} onClick={createPage} aria-label="新建页面">＋<small>新页面</small></button>}
-      {organizeReady && <button type="button" className={styles.organizeBubble} onClick={() => void organizePage(universe)} aria-label="生成新的整理快照">✦<small>整理</small></button>}
     </nav>
   </main>;
 }

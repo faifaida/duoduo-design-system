@@ -83,6 +83,31 @@
   outline: none;
 }
 
+.topTools {
+  position: fixed;
+  z-index: 90;
+  top: 172px;
+  left: clamp(20px, 4vw, 66px);
+  display: flex;
+  gap: 8px;
+}
+
+.topTools button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 8px 13px;
+  color: var(--night);
+  border: 1px solid rgba(241, 233, 218, .75);
+  border-radius: 999px;
+  background: rgba(241, 233, 218, .94);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .24);
+  font: 600 12px/1 var(--serif-zh);
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+}
+
 .stage {
   position: relative;
   z-index: 2;
@@ -279,9 +304,10 @@
 }
 
 .star {
+  min-width: 110px;
   border: 0;
   clip-path: polygon(50% 0%, 61% 34%, 97% 18%, 72% 48%, 100% 62%, 64% 65%, 55% 100%, 43% 68%, 8% 88%, 28% 55%, 0% 38%, 38% 37%);
-  background: rgba(45, 42, 78, .96);
+  background: linear-gradient(145deg, rgba(99, 86, 150, .98), rgba(52, 45, 91, .98));
 }
 
 .node strong {
@@ -297,7 +323,9 @@
   right: 14%;
   bottom: 11%;
   color: var(--teal-light);
-  font: normal 9px/1 var(--serif-zh);
+  font: normal clamp(11px, .82em, 16px)/1 var(--serif-zh);
+  opacity: .82;
+  transform: translate(15%, 15%);
 }
 
 .node:focus-visible {
@@ -313,6 +341,15 @@
     radial-gradient(circle at 35% 27%, rgba(241, 233, 218, .12), transparent 33%),
     rgba(22, 26, 45, .96);
 }
+
+.keptNode.star {
+  color: var(--night);
+  background: linear-gradient(145deg, #f2d88f, #c99a3f);
+  filter: drop-shadow(0 12px 22px rgba(201, 154, 63, .2));
+}
+
+.keptNode.star small,
+.keptNode.star i { color: rgba(21, 26, 46, .7); }
 
 .keptNode small {
   position: absolute;
@@ -431,7 +468,7 @@
 }
 
 .status {
-  position: absolute;
+  position: fixed;
   z-index: 18;
   right: clamp(20px, 4vw, 60px);
   bottom: 112px;
@@ -455,7 +492,46 @@
   justify-content: center;
   gap: 9px;
   pointer-events: none;
+  transform: translateZ(0);
+  isolation: isolate;
 }
+
+.chatPanel {
+  position: fixed;
+  z-index: 95;
+  top: 50%;
+  right: 18px;
+  display: flex;
+  align-items: flex-start;
+  transform: translateY(-50%);
+}
+
+.chatToggle {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  min-height: 58px;
+  color: var(--night);
+  border: 1px solid var(--teal-light);
+  border-radius: 51% 49% 44% 56% / 58% 43% 57% 42%;
+  background: var(--teal-light);
+  font: 700 16px/1 var(--serif-en);
+  cursor: pointer;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .28);
+}
+.chatToggle span { font: 600 8px/1 var(--serif-zh); }
+.chatBody { width: min(330px, calc(100vw - 94px)); max-height: min(650px, 72svh); margin-right: 8px; overflow: hidden; border: 1px solid rgba(31, 206, 221, .35); border-radius: 24px; background: rgba(7, 14, 27, .94); box-shadow: 0 22px 60px rgba(0,0,0,.42); backdrop-filter: blur(18px); }
+.chatBody header { display: grid; gap: 4px; padding: 18px 18px 12px; border-bottom: 1px dotted rgba(31,206,221,.25); }
+.chatBody header b { font: 500 16px/1.3 var(--serif-zh); }
+.chatBody header small { color: rgba(241,233,218,.5); font-size: 10px; }
+.chatMessages { display: grid; gap: 9px; max-height: 360px; padding: 14px 16px; overflow-y: auto; }
+.chatMessages p { margin: 0; padding: 10px 12px; border-radius: 16px; font: 13px/1.55 var(--serif-zh); white-space: pre-wrap; }
+.chatMessages p[data-role="assistant"] { margin-right: 22px; background: rgba(31,206,221,.1); }
+.chatMessages p[data-role="user"] { margin-left: 22px; color: var(--night); background: var(--linen); }
+.chatBody form { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 12px; border-top: 1px dotted rgba(31,206,221,.25); }
+.chatBody textarea { min-width: 0; resize: none; padding: 10px 12px; color: var(--linen); border: 1px solid rgba(31,206,221,.3); border-radius: 14px; outline: 0; background: rgba(255,255,255,.04); font: 13px/1.45 var(--serif-zh); }
+.chatBody form button { align-self: end; min-height: 40px; padding: 0 12px; color: var(--night); border: 0; border-radius: 999px; background: var(--teal-light); cursor: pointer; }
+.chatBody form button:disabled { opacity: .35; }
 
 .pageDock button,
 .pageScroller { pointer-events: auto; }
@@ -546,6 +622,8 @@
   .atlasHeader h1 { font-size: 24px; }
   .atlasHeader p { display: none; }
   .backLink { top: 83px; right: 14px; max-width: 130px; font-size: 9px; text-align: right; }
+  .topTools { top: 137px; left: 14px; }
+  .topTools button { min-height: 38px; padding: 7px 11px; }
   .navigationStars { top: 17%; right: 5%; gap: 12px; opacity: .68; }
   .seedCenter { top: 49%; width: 174px; }
   .seedForm label { font-size: 16px; }
@@ -560,6 +638,9 @@
   .candidateNode:nth-of-type(3n + 2) { width: 110px; }
   .status { right: 14px; bottom: 102px; left: 14px; max-width: none; font-size: 11px; }
   .pageDock { right: 8px; bottom: 10px; left: 8px; gap: 5px; justify-content: flex-start; }
+  .chatPanel { top: auto; right: 10px; bottom: 82px; align-items: flex-end; transform: none; }
+  .chatBody { width: calc(100vw - 86px); max-height: 62svh; }
+  .chatMessages { max-height: 32svh; }
   .pageScroller { flex: 1; max-width: none; padding: 5px 6px; }
   .pageBubble, .undoBubble, .addPageBubble, .organizeBubble { min-width: 52px; height: 52px; padding: 6px 8px; }
   .pageBubble { min-width: 66px; }
