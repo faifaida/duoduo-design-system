@@ -34,8 +34,8 @@ jobs:
       - name: Deploy to Cloudflare
         shell: bash
         run: |
-          cloudflare_token="$(printf '%s' "$CLOUDFLARE_API_TOKEN_RAW" | grep -oE '[A-Za-z0-9_-]{40,}' | tail -n 1)"
-          cloudflare_account_id="$(printf '%s' "$CLOUDFLARE_ACCOUNT_ID_RAW" | grep -oE '[A-Fa-f0-9]{32}' | tail -n 1)"
+          cloudflare_token="$(printf '%s' "$CLOUDFLARE_API_TOKEN_RAW" | grep -oE '[A-Za-z0-9._-]{20,}' | tail -n 1 || true)"
+          cloudflare_account_id="$(printf '%s' "$CLOUDFLARE_ACCOUNT_ID_RAW" | grep -oE '[A-Fa-f0-9]{32}' | tail -n 1 || true)"
 
           if [[ -z "$cloudflare_token" || -z "$cloudflare_account_id" ]]; then
             echo "Cloudflare credentials are present but could not be normalized."
