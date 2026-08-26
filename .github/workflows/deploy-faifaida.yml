@@ -31,7 +31,20 @@ jobs:
           cache-dependency-path: assets/faifaida-reference/package-lock.json
       - run: npm ci
       - run: npm test
-      - run: npm run deploy:cloudflare
+      - name: Deploy to Cloudflare
+        shell: bash
+        run: |
+          cloudflare_token="$(printf '%s' "$CLOUDFLARE_API_TOKEN_RAW" | grep -oE '[A-Za-z0-9_-]{40,}' | tail -n 1)"
+          cloudflare_account_id="$(printf '%s' "$CLOUDFLARE_ACCOUNT_ID_RAW" | grep -oE '[A-Fa-f0-9]{32}' | tail -n 1)"
+
+          if [[ -z "$cloudflare_token" || -z "$cloudflare_account_id" ]]; then
+            echo "Cloudflare credentials are present but could not be normalized."
+            exit 1
+          fi
+
+          export CLOUDFLARE_API_TOKEN="$cloudflare_token"
+          export CLOUDFLARE_ACCOUNT_ID="$cloudflare_account_id"
+          npm run deploy:cloudflare
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN_RAW: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID_RAW: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
