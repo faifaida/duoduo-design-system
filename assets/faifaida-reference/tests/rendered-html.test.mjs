@@ -106,6 +106,11 @@ test("publishes the growing divergent universe through TAKE SOMETHING", async ()
   assert.match(worker, /verifyGithubDeployIdentity/);
   assert.match(worker, /faifaida\/duoduo-design-system/);
   assert.match(worker, /Cache-Control.*no-store/);
+  assert.match(worker, /\/api\/divergent-workspace/);
+  assert.match(worker, /\/api\/divergent-feedback/);
+  assert.match(worker, /divergentCommunitySignals/);
+  assert.match(universe, /reportCandidateAction/);
+  assert.match(universe, /Typed roots can be private/);
 });
 
 test("keeps the divergent universe available when the upstream AI tide is quiet", async () => {

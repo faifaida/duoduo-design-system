@@ -25,7 +25,7 @@ const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${Math.ran
 const timestamp = () => Date.now();
 const nodeRadius = (node: UniverseNode, activeId?: string | null) => node.id === activeId ? 82 : node.kind === "star" ? 58 : 54;
 const freshUniverse = (): UniversePage => ({ id: uid("universe"), kind: "universe", title: "新页面", retained: [], candidates: [], activeId: null, camera: EMPTY_CAMERA, organizedAt: 0 });
-const freshWorkspace = (): Workspace => { const page = freshUniverse(); return { version: 2, anonymousId: uid("anon"), activePageId: page.id, pages: [page] }; };
+const freshWorkspace = (): Workspace => { const page = freshUniverse(); return { version: 2, anonymousId: `anon-${crypto.randomUUID()}`, activePageId: page.id, pages: [page] }; };
 
 function lineStyle(from: UniverseNode, to: UniverseNode, activeId: string | null) {
   const dx = to.x - from.x, dy = to.y - from.y, length = Math.max(1, Math.hypot(dx, dy));
@@ -129,6 +129,7 @@ export function DivergentUniverse() {
   const lastBlankTap = useRef<null | { time: number; point: Point }>(null);
   const suppressClick = useRef(false);
   const organizing = useRef(new Set<string>());
+  const cloudSaveTimer = useRef<number | null>(null);
 
   const activePage = workspace.pages.find((page) => page.id === workspace.activePageId) ?? workspace.pages[0];
   const universe = activePage?.kind === "universe" ? activePage : null;
@@ -140,12 +141,42 @@ export function DivergentUniverse() {
 
   useEffect(() => { queueMicrotask(() => { try { const saved = localStorage.getItem(STORAGE_KEY); if (saved) { const parsed: unknown = JSON.parse(saved); if (validWorkspace(parsed)) setWorkspace(parsed); } } catch { /* storage may be blocked */ } setHydrated(true); }); }, []);
   useEffect(() => { workspaceRef.current = workspace; }, [workspace]);
-  useEffect(() => { if (!hydrated) return; try { localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace)); } catch { /* keep live session */ } }, [hydrated, workspace]);
+  useEffect(() => {
+    if (!hydrated) return;
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace)); } catch { /* keep live session */ }
+    if (cloudSaveTimer.current) window.clearTimeout(cloudSaveTimer.current);
+    cloudSaveTimer.current = window.setTimeout(() => {
+      void fetch("/api/divergent-workspace", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ anonymousId: workspace.anonymousId, workspace }),
+        keepalive: true,
+      }).catch(() => undefined);
+    }, 1600);
+    return () => { if (cloudSaveTimer.current) window.clearTimeout(cloudSaveTimer.current); };
+  }, [hydrated, workspace]);
 
   const setWithoutHistory = (updater: (current: Workspace) => Workspace) => setWorkspace((current) => updater(current));
   const mutate = (updater: (current: Workspace) => Workspace) => setWorkspace((current) => { history.current = [...history.current.slice(-29), current]; setHistoryCount(history.current.length); return updater(current); });
   const updateUniverse = (current: Workspace, pageId: string, updater: (page: UniversePage) => UniversePage): Workspace => ({ ...current, pages: current.pages.map((page) => page.id === pageId && page.kind === "universe" ? updater(page) : page) });
   const undo = () => { const previous = history.current.pop(); if (!previous) return; setWorkspace(previous); setHistoryCount(history.current.length); setStatus("已经撤回上一步。 / UNDO"); };
+
+  const reportCandidateAction = (pageId: string, candidateId: string, action: "retain" | "dismiss" | "branch") => {
+    const page = workspaceRef.current.pages.find((item) => item.id === pageId);
+    if (!page || page.kind !== "universe") return;
+    const candidate = page.candidates.find((node) => node.id === candidateId);
+    const parent = candidate?.parentId ? page.retained.find((node) => node.id === candidate.parentId) : null;
+    // Typed roots can be private. Learn only once the centre is itself an AI-generated node.
+    if (!candidate || !parent?.parentId) return;
+    const siblings = page.candidates.filter((node) => node.parentId === parent.id);
+    const distance = siblings.findIndex((node) => node.id === candidate.id) < 2 ? "near" : "far";
+    void fetch("/api/divergent-feedback", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ center: parent.label, candidate: candidate.label, distance, action }),
+      keepalive: true,
+    }).catch(() => undefined);
+  };
 
   const generate = async (pageId: string, centreId: string, replace = true) => {
     const snapshot = workspaceRef.current.pages.find((page) => page.id === pageId);
@@ -181,6 +212,7 @@ export function DivergentUniverse() {
     setSeed(""); window.setTimeout(() => void generate(universe.id, root.id), 0);
   };
   const retainCandidate = (pageId: string, candidateId: string) => {
+    reportCandidateAction(pageId, candidateId, "retain");
     mutate((current) => updateUniverse(current, pageId, (page) => { const candidate = page.candidates.find((node) => node.id === candidateId); if (!candidate) return page; return settlePage({ ...page, retained: [...page.retained, { ...candidate, id: uid("kept") }], candidates: page.candidates.filter((node) => node.id !== candidateId) }); }));
     setStatus("已经留下。双击它，才会成为新中心并长出五个候选。");
   };
@@ -198,6 +230,7 @@ export function DivergentUniverse() {
     if (candidate) {
       const source = workspaceRef.current.pages.find((page) => page.id === pageId);
       siblingParentId = source?.kind === "universe" ? source.candidates.find((node) => node.id === nodeId)?.parentId ?? null : null;
+      reportCandidateAction(pageId, nodeId, "branch");
       const kept = promoteCandidate(pageId, nodeId); if (!kept) return; centreId = kept.id;
     }
     setWithoutHistory((current) => updateUniverse(current, pageId, (page) => ({ ...page, activeId: centreId, candidates: candidate ? page.candidates.filter((node) => node.parentId !== siblingParentId) : page.candidates, camera: { ...page.camera, x: 0, y: 0 } })));
@@ -217,6 +250,7 @@ export function DivergentUniverse() {
 
   const beginEdit = (node: UniverseNode, candidate: boolean) => {
     if (!universe) return;
+    if (candidate) reportCandidateAction(universe.id, node.id, "retain");
     const editable = candidate ? promoteCandidate(universe.id, node.id) ?? node : node;
     setEditingId(editable.id); setEditValue(editable.label);
     setStatus(candidate ? "候选已自动留下。直接在气泡里修改，回车保存。" : "直接在气泡里修改，回车保存。旧航线仍会留下。");
@@ -243,6 +277,7 @@ export function DivergentUniverse() {
     const alreadyCut = stroke.current?.cutIds ?? new Set<string>();
     const hitIds = allNodes.filter((node) => !alreadyCut.has(node.id) && segmentDistance(node, a, b) <= nodeRadius(node, universe.activeId) + 9).map((node) => node.id);
     if (!hitIds.length) return;
+    hitIds.forEach((id) => { if (universe.candidates.some((node) => node.id === id)) reportCandidateAction(universe.id, id, "dismiss"); });
     hitIds.forEach((id) => stroke.current?.cutIds.add(id));
     mutate((current) => updateUniverse(current, universe.id, (page) => {
       const deleted = new Set(hitIds);

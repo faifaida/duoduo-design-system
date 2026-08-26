@@ -311,6 +311,7 @@ function parseOrganization(raw: string, nodes: Array<{ id: string; label: string
 const containsUrl = (value: string) => /(https?:\/\/|www\.|[a-z0-9-]+\.(com|cn|net|org|io)\b)/i.test(value);
 
 let visitorSchemaReady: Promise<void> | null = null;
+let universeSchemaReady: Promise<void> | null = null;
 
 function ensureVisitorSchema(db: D1Database) {
   visitorSchemaReady ??= db.batch([
@@ -341,6 +342,121 @@ function ensureVisitorSchema(db: D1Database) {
     throw error;
   });
   return visitorSchemaReady;
+}
+
+function ensureUniverseSchema(db: D1Database) {
+  universeSchemaReady ??= db.batch([
+    db.prepare(
+      `CREATE TABLE IF NOT EXISTS divergent_workspaces (
+        anonymous_id TEXT PRIMARY KEY NOT NULL,
+        payload TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`,
+    ),
+    db.prepare(
+      `CREATE TABLE IF NOT EXISTS divergent_association_feedback (
+        center_label TEXT NOT NULL,
+        candidate_label TEXT NOT NULL,
+        distance TEXT NOT NULL CHECK (distance IN ('near', 'far')),
+        action TEXT NOT NULL CHECK (action IN ('retain', 'dismiss', 'branch')),
+        event_day TEXT NOT NULL,
+        event_count INTEGER NOT NULL DEFAULT 1,
+        PRIMARY KEY (center_label, candidate_label, distance, action, event_day)
+      )`,
+    ),
+    db.prepare(
+      "CREATE INDEX IF NOT EXISTS divergent_feedback_candidate_idx ON divergent_association_feedback (center_label, event_count DESC)",
+    ),
+  ]).then(() => undefined).catch((error) => {
+    universeSchemaReady = null;
+    throw error;
+  });
+  return universeSchemaReady;
+}
+
+const validAnonymousId = (value: string) => /^anon-[a-z0-9-]{12,80}$/i.test(value);
+
+async function handleDivergentWorkspace(request: Request, env: Env, url: URL) {
+  if (!env.DB) return Response.json({ error: "Cloud workspace storage is unavailable" }, { status: 503 });
+  const originError = validatePublicOrigin(request, url);
+  if (originError) return originError;
+  await ensureUniverseSchema(env.DB);
+
+  if (request.method === "GET") {
+    const anonymousId = cleanPlainText(url.searchParams.get("id"), 96);
+    if (!validAnonymousId(anonymousId)) return Response.json({ error: "Invalid anonymous workspace id" }, { status: 400 });
+    const row = await env.DB.prepare(
+      "SELECT payload, updated_at FROM divergent_workspaces WHERE anonymous_id = ?",
+    ).bind(anonymousId).first<{ payload: string; updated_at: string }>();
+    if (!row) return Response.json({ workspace: null });
+    return Response.json({ workspace: JSON.parse(row.payload), updatedAt: row.updated_at });
+  }
+
+  if (request.method === "PUT") {
+    const body = await request.json() as { anonymousId?: unknown; workspace?: unknown };
+    const anonymousId = cleanPlainText(body.anonymousId, 96);
+    if (!validAnonymousId(anonymousId)) return Response.json({ error: "Invalid anonymous workspace id" }, { status: 400 });
+    const payload = JSON.stringify(body.workspace ?? null);
+    if (payload.length < 20 || payload.length > 450_000) return Response.json({ error: "Invalid workspace payload" }, { status: 413 });
+    await env.DB.prepare(
+      `INSERT INTO divergent_workspaces (anonymous_id, payload, updated_at)
+       VALUES (?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(anonymous_id) DO UPDATE SET payload = excluded.payload, updated_at = CURRENT_TIMESTAMP`,
+    ).bind(anonymousId, payload).run();
+    return Response.json({ ok: true });
+  }
+
+  if (request.method === "DELETE") {
+    const body = await request.json() as { anonymousId?: unknown };
+    const anonymousId = cleanPlainText(body.anonymousId, 96);
+    if (!validAnonymousId(anonymousId)) return Response.json({ error: "Invalid anonymous workspace id" }, { status: 400 });
+    await env.DB.prepare("DELETE FROM divergent_workspaces WHERE anonymous_id = ?").bind(anonymousId).run();
+    return Response.json({ ok: true });
+  }
+
+  return Response.json({ error: "Method not allowed" }, { status: 405, headers: { Allow: "GET, PUT, DELETE" } });
+}
+
+async function handleDivergentFeedback(request: Request, env: Env, url: URL) {
+  if (request.method !== "POST") return Response.json({ error: "Method not allowed" }, { status: 405, headers: { Allow: "POST" } });
+  if (!env.DB) return Response.json({ error: "Feedback storage is unavailable" }, { status: 503 });
+  const originError = validatePublicOrigin(request, url);
+  if (originError) return originError;
+  await ensureUniverseSchema(env.DB);
+  const body = await request.json() as Record<string, unknown>;
+  const center = cleanPlainText(body.center, 36);
+  const candidate = cleanPlainText(body.candidate, 36);
+  const distance = body.distance === "near" ? "near" : body.distance === "far" ? "far" : "";
+  const action = ["retain", "dismiss", "branch"].includes(String(body.action)) ? String(body.action) : "";
+  if (!center || !candidate || !distance || !action || center === candidate) {
+    return Response.json({ error: "Invalid anonymous feedback" }, { status: 400 });
+  }
+  await env.DB.prepare(
+    `INSERT INTO divergent_association_feedback
+      (center_label, candidate_label, distance, action, event_day, event_count)
+     VALUES (?, ?, ?, ?, date('now'), 1)
+     ON CONFLICT(center_label, candidate_label, distance, action, event_day)
+     DO UPDATE SET event_count = event_count + 1`,
+  ).bind(center, candidate, distance, action).run();
+  return Response.json({ ok: true }, { status: 202 });
+}
+
+async function divergentCommunitySignals(db: D1Database | undefined, center: string) {
+  if (!db) return "暂无匿名质量信号";
+  await ensureUniverseSchema(db);
+  const result = await db.prepare(
+    `SELECT candidate_label,
+      SUM(CASE action WHEN 'branch' THEN event_count * 3 WHEN 'retain' THEN event_count * 2 ELSE event_count * -2 END) AS score
+     FROM divergent_association_feedback
+     WHERE center_label = ?
+     GROUP BY candidate_label
+     ORDER BY score DESC
+     LIMIT 8`,
+  ).bind(center).all<{ candidate_label: string; score: number }>();
+  const signals = (result.results ?? []).filter((item) => Number(item.score) !== 0);
+  return signals.length
+    ? signals.map((item) => `${item.candidate_label}:${Number(item.score) > 0 ? "+" : ""}${item.score}`).join("、")
+    : "暂无匿名质量信号";
 }
 
 async function hashVisitor(value: string) {
@@ -546,6 +662,24 @@ const worker = {
       }
     }
 
+    if (url.pathname === "/api/divergent-workspace") {
+      try {
+        return await handleDivergentWorkspace(request, env, url);
+      } catch (error) {
+        console.error("Divergent workspace request failed", error instanceof Error ? error.message : "Unknown error");
+        return Response.json({ error: "Cloud workspace is between tides." }, { status: 503 });
+      }
+    }
+
+    if (url.pathname === "/api/divergent-feedback") {
+      try {
+        return await handleDivergentFeedback(request, env, url);
+      } catch (error) {
+        console.error("Divergent feedback request failed", error instanceof Error ? error.message : "Unknown error");
+        return Response.json({ error: "Feedback was not recorded." }, { status: 503 });
+      }
+    }
+
     if (url.pathname === "/api/divergent-universe") {
       if (request.method !== "POST") {
         return Response.json({ error: "Method not allowed" }, { status: 405, headers: { Allow: "POST" } });
@@ -560,6 +694,7 @@ const worker = {
           ? body.avoid.map((value) => cleanPlainText(value, 36)).filter(Boolean).slice(-24)
           : [];
         if (!center) return Response.json({ error: "A centre thought is required" }, { status: 400 });
+        const communitySignals = await divergentCommunitySignals(env.DB, center);
 
         let nodes: string[] = [];
         let source: "ai" | "assisted-fallback" = "ai";
@@ -584,7 +719,7 @@ const worker = {
               },
               {
                 role: "user",
-                content: `中心概念：${center}\n本轮避开：${avoid.join("、") || "无"}`,
+                content: `中心概念：${center}\n本轮避开：${avoid.join("、") || "无"}\n匿名使用反馈（正数更常被保留/继续，负数更常被删除；仅作排序信号，仍须满足关联质量）：${communitySignals}`,
               },
             ],
             max_tokens: 520,

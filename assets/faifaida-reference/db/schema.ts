@@ -18,3 +18,20 @@ export const visitorMessages = sqliteTable("visitor_messages", {
   index("visitor_messages_status_created_idx").on(table.status, table.createdAt),
   index("visitor_messages_ip_created_idx").on(table.ipHash, table.createdAt),
 ]);
+
+export const divergentWorkspaces = sqliteTable("divergent_workspaces", {
+  anonymousId: text("anonymous_id").primaryKey(),
+  payload: text("payload").notNull(),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const divergentAssociationFeedback = sqliteTable("divergent_association_feedback", {
+  centerLabel: text("center_label").notNull(),
+  candidateLabel: text("candidate_label").notNull(),
+  distance: text("distance").notNull(),
+  action: text("action").notNull(),
+  eventDay: text("event_day").notNull(),
+  eventCount: integer("event_count").notNull().default(1),
+}, (table) => [
+  index("divergent_feedback_candidate_idx").on(table.centerLabel, table.eventCount),
+]);
