@@ -94,6 +94,7 @@ test("publishes the growing divergent universe through TAKE SOMETHING", async ()
   assert.match(universe, /duoduo-divergent-workspace-v2/);
   assert.match(universe, /撤回上一步/);
   assert.match(universe, /divergent-organize/);
+  assert.match(universe, /node\.parentId !== siblingParentId/);
   assert.doesNotMatch(universe, />都不要</);
   assert.doesNotMatch(universe, />换一批</);
   assert.doesNotMatch(universe, /候选操作/);

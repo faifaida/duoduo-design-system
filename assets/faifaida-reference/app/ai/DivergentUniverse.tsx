@@ -194,8 +194,13 @@ export function DivergentUniverse() {
   };
   const centreAndGenerate = (pageId: string, nodeId: string, candidate: boolean) => {
     let centreId = nodeId;
-    if (candidate) { const kept = promoteCandidate(pageId, nodeId); if (!kept) return; centreId = kept.id; }
-    setWithoutHistory((current) => updateUniverse(current, pageId, (page) => ({ ...page, activeId: centreId, camera: { ...page.camera, x: 0, y: 0 } })));
+    let siblingParentId: string | null = null;
+    if (candidate) {
+      const source = workspaceRef.current.pages.find((page) => page.id === pageId);
+      siblingParentId = source?.kind === "universe" ? source.candidates.find((node) => node.id === nodeId)?.parentId ?? null : null;
+      const kept = promoteCandidate(pageId, nodeId); if (!kept) return; centreId = kept.id;
+    }
+    setWithoutHistory((current) => updateUniverse(current, pageId, (page) => ({ ...page, activeId: centreId, candidates: candidate ? page.candidates.filter((node) => node.parentId !== siblingParentId) : page.candidates, camera: { ...page.camera, x: 0, y: 0 } })));
     window.setTimeout(() => void generate(pageId, centreId), 0);
   };
   const handleNodeClick = (node: UniverseNode, candidate: boolean, event: MouseEvent) => {
