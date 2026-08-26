@@ -102,6 +102,9 @@ test("publishes the growing divergent universe through TAKE SOMETHING", async ()
   assert.match(worker, /assisted-fallback/);
   assert.match(worker, /不得连续使用中心词作前缀/);
   assert.match(worker, /nearDuplicate/);
+  assert.match(worker, /verifyGithubDeployIdentity/);
+  assert.match(worker, /faifaida\/duoduo-design-system/);
+  assert.match(worker, /Cache-Control.*no-store/);
 });
 
 test("keeps the divergent universe available when the upstream AI tide is quiet", async () => {

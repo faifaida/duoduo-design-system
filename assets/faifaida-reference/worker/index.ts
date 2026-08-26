@@ -21,6 +21,7 @@ interface Env {
   AI?: AiBinding;
   DB?: D1Database;
   ADMIN_TOKEN?: string;
+  CLOUDFLARE_DEPLOY_TOKEN?: string;
   IMAGES: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
@@ -426,6 +427,59 @@ interface ExecutionContext {
   passThroughOnException(): void;
 }
 
+type GithubOidcClaims = {
+  iss?: unknown;
+  aud?: unknown;
+  exp?: unknown;
+  nbf?: unknown;
+  repository?: unknown;
+  ref?: unknown;
+  event_name?: unknown;
+  workflow_ref?: unknown;
+};
+
+const decodeBase64Url = (value: string) => {
+  const padded = value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+  return Uint8Array.from(atob(padded), (char) => char.charCodeAt(0));
+};
+
+async function verifyGithubDeployIdentity(token: string) {
+  const parts = token.split(".");
+  if (parts.length !== 3) return false;
+  try {
+    const header = JSON.parse(new TextDecoder().decode(decodeBase64Url(parts[0]))) as { alg?: unknown; kid?: unknown };
+    const claims = JSON.parse(new TextDecoder().decode(decodeBase64Url(parts[1]))) as GithubOidcClaims;
+    if (header.alg !== "RS256" || typeof header.kid !== "string") return false;
+    const audience = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
+    const now = Math.floor(Date.now() / 1000);
+    if (
+      claims.iss !== "https://token.actions.githubusercontent.com"
+      || !audience.includes("faifaida-deploy")
+      || claims.repository !== "faifaida/duoduo-design-system"
+      || claims.ref !== "refs/heads/main"
+      || !["push", "workflow_dispatch"].includes(String(claims.event_name))
+      || claims.workflow_ref !== "faifaida/duoduo-design-system/.github/workflows/deploy-faifaida.yml@refs/heads/main"
+      || typeof claims.exp !== "number" || claims.exp < now
+      || (typeof claims.nbf === "number" && claims.nbf > now + 30)
+    ) return false;
+
+    const jwksResponse = await fetch("https://token.actions.githubusercontent.com/.well-known/jwks");
+    if (!jwksResponse.ok) return false;
+    const jwks = await jwksResponse.json() as { keys?: Array<JsonWebKey & { kid?: string }> };
+    const jwk = jwks.keys?.find((key) => key.kid === header.kid);
+    if (!jwk) return false;
+    const key = await crypto.subtle.importKey("jwk", jwk, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
+    return crypto.subtle.verify(
+      { name: "RSASSA-PKCS1-v1_5" },
+      key,
+      decodeBase64Url(parts[2]),
+      new TextEncoder().encode(`${parts[0]}.${parts[1]}`),
+    );
+  } catch {
+    return false;
+  }
+}
+
 // Image security config. SVG sources with .svg extension auto-skip the
 // optimization endpoint on the client side (served directly, no proxy).
 // To route SVGs through the optimizer (with security headers), set
@@ -435,6 +489,20 @@ interface ExecutionContext {
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+
+    if (url.pathname === "/api/github-deploy-credential") {
+      if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
+      const authorization = request.headers.get("Authorization") ?? "";
+      const identityToken = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
+      if (!identityToken || !await verifyGithubDeployIdentity(identityToken)) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      if (!env.CLOUDFLARE_DEPLOY_TOKEN) return new Response("Deploy credential unavailable", { status: 503 });
+      return Response.json(
+        { token: env.CLOUDFLARE_DEPLOY_TOKEN },
+        { headers: { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } },
+      );
+    }
 
     if (url.pathname === "/api/visitor-messages") {
       try {

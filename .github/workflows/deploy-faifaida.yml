@@ -15,6 +15,7 @@ concurrency:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   deploy:
@@ -34,17 +35,18 @@ jobs:
       - name: Deploy to Cloudflare
         shell: bash
         run: |
-          cloudflare_token="$(printf '%s' "$CLOUDFLARE_API_TOKEN_RAW" | sed -nE 's/.*API token[^A-Za-z0-9._-]+([A-Za-z0-9._-]{20,}).*/\1/ip' | tail -n 1)"
-          if [[ -z "$cloudflare_token" ]]; then
-            cloudflare_token="$(printf '%s' "$CLOUDFLARE_API_TOKEN_RAW" | grep -oE '[A-Za-z0-9._-]{20,}' | head -n 1 || true)"
-          fi
+          oidc_response="$(curl -fsS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=faifaida-deploy")"
+          oidc_token="$(jq -r '.value // empty' <<<"$oidc_response")"
+          credential_response="$(curl -fsS -X POST https://faifaida.com/api/github-deploy-credential -H "Authorization: Bearer $oidc_token")"
+          cloudflare_token="$(jq -r '.token // empty' <<<"$credential_response")"
           cloudflare_account_id="$(grep -oE 'account_id[[:space:]]*=[[:space:]]*"[A-Fa-f0-9]{32}"' wrangler.toml | grep -oE '[A-Fa-f0-9]{32}' | head -n 1)"
 
           if [[ -z "$cloudflare_token" || -z "$cloudflare_account_id" ]]; then
-            echo "Cloudflare credentials are present but could not be normalized."
+            echo "GitHub OIDC identity exchange did not return deploy credentials."
             exit 1
           fi
 
+          echo "::add-mask::$cloudflare_token"
           export CLOUDFLARE_API_TOKEN="$cloudflare_token"
           export CLOUDFLARE_ACCOUNT_ID="$cloudflare_account_id"
           npm run build:cloudflare
@@ -54,5 +56,3 @@ jobs:
           # the existing routes and deploy only the generated Worker config.
           jq 'del(.routes)' dist/server/wrangler.json > dist/server/wrangler-ci.json
           npx wrangler deploy --config dist/server/wrangler-ci.json
-        env:
-          CLOUDFLARE_API_TOKEN_RAW: ${{ secrets.CLOUDFLARE_API_TOKEN }}
