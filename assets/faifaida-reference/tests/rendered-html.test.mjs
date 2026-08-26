@@ -84,12 +84,16 @@ test("publishes the growing divergent universe through TAKE SOMETHING", async ()
   assert.match(html, /此刻，你想从什么开始？/);
   assert.match(unified, /path: "\/ai\/universe"/);
   assert.match(unified, /href=\{tool\.path\}/);
-  assert.match(universe, /keepAndBranch/);
-  assert.match(universe, /focusRetained/);
-  assert.match(universe, /dissolveAt/);
+  assert.match(universe, /retainCandidate/);
+  assert.match(universe, /centreAndGenerate/);
+  assert.match(universe, /deleteAlongSegment/);
+  assert.match(universe, /segmentDistance/);
   assert.match(universe, /openIndependentDraft/);
   assert.match(universe, /startLongPress/);
-  assert.match(universe, /clamp\(labels\.length, 4, 6\)/);
+  assert.match(universe, /labels\.slice\(0, 5\)/);
+  assert.match(universe, /duoduo-divergent-workspace-v2/);
+  assert.match(universe, /撤回上一步/);
+  assert.match(universe, /divergent-organize/);
   assert.doesNotMatch(universe, />都不要</);
   assert.doesNotMatch(universe, />换一批</);
   assert.doesNotMatch(universe, /候选操作/);
@@ -119,8 +123,8 @@ test("keeps the divergent universe available when the upstream AI tide is quiet"
   const data = await response.json();
   assert.equal(response.status, 200);
   assert.equal(data.source, "assisted-fallback");
-  assert.equal(data.nodes.length, 6);
-  assert.equal(new Set(data.nodes).size, 6);
+  assert.equal(data.nodes.length, 5);
+  assert.equal(new Set(data.nodes).size, 5);
 });
 
 test("filters repeated AI associations before they reach the universe", async () => {
@@ -151,8 +155,8 @@ test("filters repeated AI associations before they reach the universe", async ()
   );
   const data = await response.json();
   assert.equal(response.status, 200);
-  assert.equal(data.nodes.length, 6);
-  assert.equal(new Set(data.nodes).size, 6);
+  assert.equal(data.nodes.length, 5);
+  assert.equal(new Set(data.nodes).size, 5);
   assert.ok(data.nodes.filter((label) => label.startsWith("太极")).length <= 1);
 });
 
@@ -174,7 +178,33 @@ test("recovers labels from truncated AI JSON without leaking JSON keys", async (
   );
   const data = await response.json();
   assert.equal(response.status, 200);
-  assert.equal(data.nodes.length, 6);
+  assert.equal(data.nodes.length, 5);
   assert.ok(data.nodes.includes("候鸟迁徙"));
   assert.ok(data.nodes.every((label) => !/["{}\[\]]|nodes|bridge/.test(label)));
+});
+
+test("filters structural AI leakage and creates complete organization snapshots", async () => {
+  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
+  workerUrl.searchParams.set("organization-test", `${process.pid}-${Date.now()}`);
+  const { default: worker } = await import(workerUrl.href);
+  const nodes = Array.from({ length: 12 }, (_, index) => ({ id: `n${index + 1}`, label: `想法${index + 1}` }));
+  const response = await worker.fetch(
+    new Request("http://localhost/api/divergent-organize", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "http://localhost" },
+      body: JSON.stringify({ title: "测试宇宙", nodes }),
+    }),
+    {
+      ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) },
+      AI: { run: async () => { throw new Error("use deterministic fallback"); } },
+    },
+    { waitUntil() {}, passThroughOnException() {} },
+  );
+  const data = await response.json();
+  assert.equal(response.status, 200);
+  assert.ok(data.clusters.length >= 3 && data.clusters.length <= 5);
+  const organizedIds = data.clusters.flatMap((cluster) => cluster.nodeIds);
+  assert.deepEqual(new Set(organizedIds), new Set(nodes.map((node) => node.id)));
+  assert.equal(organizedIds.length, nodes.length);
+  assert.match(JSON.stringify(data), /整理快照/);
 });
