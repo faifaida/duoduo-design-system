@@ -35,3 +35,9 @@ export const divergentAssociationFeedback = sqliteTable("divergent_association_f
 }, (table) => [
   index("divergent_feedback_candidate_idx").on(table.centerLabel, table.eventCount),
 ]);
+
+export const divergentChallengeMetrics = sqliteTable("divergent_challenge_metrics", {
+  eventName: text("event_name").notNull(),
+  eventDay: text("event_day").notNull(),
+  eventCount: integer("event_count").notNull().default(1),
+});

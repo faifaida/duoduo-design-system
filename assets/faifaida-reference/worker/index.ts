@@ -251,6 +251,41 @@ function completeDivergentNodes(nodes: string[], center: string, avoid: string[]
   return completed.slice(0, 5);
 }
 
+function completeChallengeNodes(nodes: string[], current: string, target: string, path: string[]) {
+  const routeDirections = [
+    "共同材料", "使用场景", "身体动作", "历史来路", "相反结构",
+    "空间距离", "时间变化", "社会角色", "自然规律", "隐藏代价",
+  ];
+  const blocked = new Set([current, target, ...path, ...nodes].map((value) => cleanPlainText(value, 36).toLocaleLowerCase()));
+  const completed = [...nodes];
+  const offset = Array.from(`${current}${target}`).reduce((sum, character) => sum + character.charCodeAt(0), 0) % routeDirections.length;
+  for (let index = 0; index < routeDirections.length && completed.length < 5; index += 1) {
+    const candidate = routeDirections[(offset + index) % routeDirections.length];
+    if (blocked.has(candidate.toLocaleLowerCase())) continue;
+    completed.push(candidate);
+  }
+  return completed.slice(0, 5);
+}
+
+function fallbackChallengeSummary(path: string[]) {
+  return {
+    title: "你的脑回路拒绝直线",
+    summary: `你从「${path[0]}」出发，绕过 ${path.slice(1, -1).join("、")}，最后抵达「${path.at(-1)}」。这不是走神，是一条很有主见的支线。`,
+  };
+}
+
+function parseChallengeSummary(raw: string, path: string[]) {
+  const cleaned = raw.replace(/```(?:json)?/gi, "").replace(/```/g, "").trim();
+  try {
+    const parsed = JSON.parse(cleaned) as { title?: unknown; summary?: unknown };
+    const title = cleanPlainText(parsed.title, 24);
+    const summary = cleanPlainText(parsed.summary, 180);
+    return title && summary ? { title, summary } : fallbackChallengeSummary(path);
+  } catch {
+    return fallbackChallengeSummary(path);
+  }
+}
+
 type OrganizationCluster = { title: string; nodeIds: string[]; insight: string };
 
 function fallbackOrganization(nodes: Array<{ id: string; label: string }>) {
@@ -367,6 +402,14 @@ function ensureUniverseSchema(db: D1Database) {
     db.prepare(
       "CREATE INDEX IF NOT EXISTS divergent_feedback_candidate_idx ON divergent_association_feedback (center_label, event_count DESC)",
     ),
+    db.prepare(
+      `CREATE TABLE IF NOT EXISTS divergent_challenge_metrics (
+        event_name TEXT NOT NULL CHECK (event_name IN ('started', 'completed', 'shared', 'downloaded')),
+        event_day TEXT NOT NULL,
+        event_count INTEGER NOT NULL DEFAULT 1,
+        PRIMARY KEY (event_name, event_day)
+      )`,
+    ),
   ]).then(() => undefined).catch((error) => {
     universeSchemaReady = null;
     throw error;
@@ -438,6 +481,26 @@ async function handleDivergentFeedback(request: Request, env: Env, url: URL) {
      ON CONFLICT(center_label, candidate_label, distance, action, event_day)
      DO UPDATE SET event_count = event_count + 1`,
   ).bind(center, candidate, distance, action).run();
+  return Response.json({ ok: true }, { status: 202 });
+}
+
+async function handleDivergentChallengeEvent(request: Request, env: Env, url: URL) {
+  if (request.method !== "POST") return Response.json({ error: "Method not allowed" }, { status: 405, headers: { Allow: "POST" } });
+  if (!env.DB) return Response.json({ error: "Challenge metrics are unavailable" }, { status: 503 });
+  const originError = validatePublicOrigin(request, url);
+  if (originError) return originError;
+  await ensureUniverseSchema(env.DB);
+  const body = await request.json() as { event?: unknown };
+  const event = cleanPlainText(body.event, 24);
+  if (!["started", "completed", "shared", "downloaded"].includes(event)) {
+    return Response.json({ error: "Invalid challenge event" }, { status: 400 });
+  }
+  // Deliberately store no user id, route labels, destination or context here.
+  await env.DB.prepare(
+    `INSERT INTO divergent_challenge_metrics (event_name, event_day, event_count)
+     VALUES (?, date('now'), 1)
+     ON CONFLICT(event_name, event_day) DO UPDATE SET event_count = event_count + 1`,
+  ).bind(event).run();
   return Response.json({ ok: true }, { status: 202 });
 }
 
@@ -677,6 +740,114 @@ const worker = {
       } catch (error) {
         console.error("Divergent feedback request failed", error instanceof Error ? error.message : "Unknown error");
         return Response.json({ error: "Feedback was not recorded." }, { status: 503 });
+      }
+    }
+
+    if (url.pathname === "/api/divergent-challenge-event") {
+      try {
+        return await handleDivergentChallengeEvent(request, env, url);
+      } catch (error) {
+        console.error("Challenge metric failed", error instanceof Error ? error.message : "Unknown error");
+        return Response.json({ error: "Challenge metric was not recorded" }, { status: 503 });
+      }
+    }
+
+    if (url.pathname === "/api/six-step-universe") {
+      if (request.method !== "POST") {
+        return Response.json({ error: "Method not allowed" }, { status: 405, headers: { Allow: "POST" } });
+      }
+      const originError = validatePublicOrigin(request, url);
+      if (originError) return originError;
+      try {
+        const body = await request.json() as { start?: unknown; target?: unknown; context?: unknown; path?: unknown; step?: unknown };
+        const start = cleanPlainText(body.start, 36);
+        const target = cleanPlainText(body.target, 36);
+        const context = cleanPlainText(body.context, 320);
+        const path = Array.isArray(body.path) ? body.path.map((value) => cleanPlainText(value, 36)).filter(Boolean).slice(0, 6) : [];
+        const current = path.at(-1) ?? start;
+        const step = Math.min(5, Math.max(1, Number(body.step) || path.length || 1));
+        if (!start || !target || !current || start.toLocaleLowerCase() === target.toLocaleLowerCase()) {
+          return Response.json({ error: "Two different thoughts are required" }, { status: 400 });
+        }
+
+        let nodes: string[] = [];
+        let source: "ai" | "assisted-fallback" = "ai";
+        try {
+          const result = await runAi(env, {
+            messages: [
+              {
+                role: "system",
+                content: [
+                  "你是六步宇宙的路线设计师。用户要用六个可解释的联想，从起点走到终点。",
+                  "每一轮只输出恰好 5 个短候选。每个候选必须与当前节点有一条普通人能理解的直接桥梁，同时让整条路线逐渐靠近终点。",
+                  "前两项应当稳妥、具体；后三项可以意外、跨领域或幽默，但不能只靠诗意气氛硬凑。",
+                  "候选不能重复已经走过的路径，不能提前直接输出终点；终点将在第六步由系统接入。",
+                  "用户 Context 只用于理解这次为什么连接，不要复述其中的私人信息，也不要把它变成心理诊断。",
+                  "保持用户输入的主要语言。中文标签优先 2—8 个字，英文优先 1—4 个词。",
+                  "只输出 JSON：{\"nodes\":[{\"label\":\"候选\",\"bridge\":\"它如何连接当前节点并靠近终点\"}]}。",
+                ].join("\n"),
+              },
+              {
+                role: "user",
+                content: `起点：${start}\n终点：${target}\n当前：${current}\n当前是第 ${step}/6 步\n已走路径：${path.join(" → ")}\n本次 Context：${context || "无"}`,
+              },
+            ],
+            max_tokens: 520,
+            temperature: .88,
+          }, true);
+          nodes = parseDivergentNodes(extractAiText(result), current, [...path, target]);
+        } catch (error) {
+          source = "assisted-fallback";
+          console.warn("Six-step route used structural fallback", error instanceof Error ? error.message : "Unknown error");
+        }
+        if (nodes.length < 5) source = "assisted-fallback";
+        nodes = completeChallengeNodes(nodes, current, target, path);
+        return Response.json({ nodes, source });
+      } catch (error) {
+        console.error("Six-step route failed", error instanceof Error ? error.message : "Unknown error");
+        return Response.json({ error: "This part of the route is between tides" }, { status: 503 });
+      }
+    }
+
+    if (url.pathname === "/api/six-step-summary") {
+      if (request.method !== "POST") {
+        return Response.json({ error: "Method not allowed" }, { status: 405, headers: { Allow: "POST" } });
+      }
+      const originError = validatePublicOrigin(request, url);
+      if (originError) return originError;
+      try {
+        const body = await request.json() as { path?: unknown; context?: unknown };
+        const path = Array.isArray(body.path) ? body.path.map((value) => cleanPlainText(value, 36)).filter(Boolean).slice(0, 7) : [];
+        const context = cleanPlainText(body.context, 320);
+        if (path.length !== 7) return Response.json({ error: "A complete six-step path is required" }, { status: 400 });
+        let summary = fallbackChallengeSummary(path);
+        try {
+          const result = await runAi(env, {
+            messages: [
+              {
+                role: "system",
+                content: [
+                  "你为六步宇宙的分享卡写一句路线观察。",
+                  "严格依据用户实际选择的整条路径和本次 Context，不发明经历，不做人格或心理诊断。",
+                  "可以抽象、机灵、轻微荒诞或好笑，像一个聪明朋友看完脑回路后的短评；不要鸡汤，不要冒犯。",
+                  "标题 6—14 个中文字或 3—8 个英文词；总结 35—75 个中文字或等量英文。",
+                  "不要逐项机械复述路线，至少点出一个真实转折，并让用户愿意截图分享。保持用户的主要语言。",
+                  "只输出 JSON：{\"title\":\"短标题\",\"summary\":\"一句总结\"}。",
+                ].join("\n"),
+              },
+              { role: "user", content: `路径：${path.join(" → ")}\n本次 Context：${context || "无"}` },
+            ],
+            max_tokens: 260,
+            temperature: .86,
+          }, true);
+          summary = parseChallengeSummary(extractAiText(result), path);
+        } catch (error) {
+          console.warn("Six-step summary used fallback", error instanceof Error ? error.message : "Unknown error");
+        }
+        return Response.json(summary);
+      } catch (error) {
+        console.error("Six-step summary failed", error instanceof Error ? error.message : "Unknown error");
+        return Response.json({ error: "The route summary is between tides" }, { status: 503 });
       }
     }
 

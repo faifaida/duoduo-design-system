@@ -92,7 +92,8 @@
   gap: 8px;
 }
 
-.topTools button {
+.topTools button,
+.topTools a {
   display: flex;
   align-items: center;
   gap: 7px;
@@ -106,6 +107,7 @@
   font: 600 12px/1 var(--serif-zh);
   cursor: pointer;
   backdrop-filter: blur(12px);
+  text-decoration: none;
 }
 
 .stage {

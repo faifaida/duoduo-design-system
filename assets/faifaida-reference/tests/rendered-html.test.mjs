@@ -113,6 +113,62 @@ test("publishes the growing divergent universe through TAKE SOMETHING", async ()
   assert.match(universe, /Typed roots can be private/);
 });
 
+test("publishes the six-step share challenge without storing private context", async () => {
+  const [response, challenge, worker, migration] = await Promise.all([
+    render("/ai/universe/challenge"),
+    readFile(new URL("../app/ai/SixStepUniverse.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../worker/index.ts", import.meta.url), "utf8"),
+    readFile(new URL("../migrations/0003_six_step_universe.sql", import.meta.url), "utf8"),
+  ]);
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /SIX DEGREES OF THOUGHT/);
+  assert.match(html, /六步宇宙/);
+  assert.match(challenge, /renderShareCard/);
+  assert.match(challenge, /1080/);
+  assert.match(challenge, /1440/);
+  assert.match(challenge, /navigator\.share/);
+  assert.match(challenge, /The typed start\/context stay private/);
+  assert.match(worker, /url\.pathname === "\/api\/six-step-universe"/);
+  assert.match(worker, /url\.pathname === "\/api\/six-step-summary"/);
+  assert.match(worker, /url\.pathname === "\/api\/divergent-challenge-event"/);
+  assert.match(worker, /store no user id, route labels, destination or context/);
+  assert.match(migration, /divergent_challenge_metrics/);
+  assert.doesNotMatch(migration, /context|start_label|target_label|anonymous_id/);
+});
+
+test("keeps six-step routing and its playful summary available when AI is quiet", async () => {
+  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
+  workerUrl.searchParams.set("six-step-test", `${process.pid}-${Date.now()}`);
+  const { default: worker } = await import(workerUrl.href);
+  const env = {
+    ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) },
+    AI: { run: async () => { throw new Error("offline"); } },
+  };
+  const routeResponse = await worker.fetch(new Request("http://localhost/api/six-step-universe", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "http://localhost" },
+    body: JSON.stringify({ start: "袜子", target: "尼采", context: "测试传播钩子", path: ["袜子"], step: 1 }),
+  }), env, { waitUntil() {}, passThroughOnException() {} });
+  const route = await routeResponse.json();
+  assert.equal(routeResponse.status, 200);
+  assert.equal(route.nodes.length, 5);
+  assert.equal(new Set(route.nodes).size, 5);
+  assert.ok(!route.nodes.includes("尼采"));
+
+  const path = ["袜子", "共同材料", "手工", "价值", "怀疑", "存在", "尼采"];
+  const summaryResponse = await worker.fetch(new Request("http://localhost/api/six-step-summary", {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: "http://localhost" },
+    body: JSON.stringify({ path, context: "测试传播钩子" }),
+  }), env, { waitUntil() {}, passThroughOnException() {} });
+  const summary = await summaryResponse.json();
+  assert.equal(summaryResponse.status, 200);
+  assert.match(summary.title, /脑回路/);
+  assert.match(summary.summary, /袜子/);
+  assert.match(summary.summary, /尼采/);
+});
+
 test("keeps the divergent universe available when the upstream AI tide is quiet", async () => {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("fallback-test", `${process.pid}-${Date.now()}`);

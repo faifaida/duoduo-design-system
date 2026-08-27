@@ -386,7 +386,7 @@ export function DivergentUniverse() {
     <div className={styles.paperNoise} aria-hidden="true" />
     <header className={styles.atlasHeader}><span>DUODUO OS · LIVE TOOL 05</span><h1>DIVERGENT UNIVERSE <b>发散宇宙</b></h1><p>留下想要的，让宇宙在每一次触碰里变大。</p></header>
     <a className={styles.backLink} href="/ai#take">↙ DUODUO OS / TAKE SOMETHING</a>
-    <div className={styles.topTools}>{organizeReady && <button type="button" onClick={() => void organizePage(universe)} aria-label="整理当前宇宙">✦<span>整理</span></button>}{organization && <><button type="button" onClick={() => switchPage(organization.sourcePageId)}>←<span>原宇宙</span></button><button type="button" onClick={() => void refreshOrganization()}>↻<span>补充最新</span></button></>}</div>
+    <div className={styles.topTools}><a href="/ai/universe/challenge">6°<span>六步挑战</span></a>{organizeReady && <button type="button" onClick={() => void organizePage(universe)} aria-label="整理当前宇宙">✦<span>整理</span></button>}{organization && <><button type="button" onClick={() => switchPage(organization.sourcePageId)}>←<span>原宇宙</span></button><button type="button" onClick={() => void refreshOrganization()}>↻<span>补充最新</span></button></>}</div>
     {organization ? <section className={styles.organizationView} aria-label="AI 整理快照">
       <div className={styles.organizationIntro}><span>AI SNAPSHOT · {new Date(organization.createdAt).toLocaleDateString("zh-CN")} · {organization.sourceNodeCount} 个节点</span><h2>{organization.title}</h2><p>{organization.summary}</p></div>
       <div className={styles.clusterGrid}>{organization.clusters.map((cluster, index) => <article className={styles.clusterIsland} key={`${cluster.title}-${index}`}>
