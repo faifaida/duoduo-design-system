@@ -252,12 +252,19 @@ function completeDivergentNodes(nodes: string[], center: string, avoid: string[]
 }
 
 function completeChallengeNodes(nodes: string[], current: string, target: string, path: string[]) {
+  const currentAssociations = completeDivergentNodes([], current, [...path, target]);
   const routeDirections = [
     "共同材料", "使用场景", "身体动作", "历史来路", "相反结构",
     "空间距离", "时间变化", "社会角色", "自然规律", "隐藏代价",
   ];
   const blocked = new Set([current, target, ...path, ...nodes].map((value) => cleanPlainText(value, 36).toLocaleLowerCase()));
   const completed = [...nodes];
+  for (const candidate of currentAssociations) {
+    const key = candidate.toLocaleLowerCase();
+    if (completed.length >= 5 || blocked.has(key)) continue;
+    blocked.add(key);
+    completed.push(candidate);
+  }
   const offset = Array.from(`${current}${target}`).reduce((sum, character) => sum + character.charCodeAt(0), 0) % routeDirections.length;
   for (let index = 0; index < routeDirections.length && completed.length < 5; index += 1) {
     const candidate = routeDirections[(offset + index) % routeDirections.length];

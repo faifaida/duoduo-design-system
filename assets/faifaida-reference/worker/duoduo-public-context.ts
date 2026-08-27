@@ -1,6 +1,9 @@
 // Stable multilingual dialogue model from the current Workers AI catalog.
 // It runs through the server-side AI binding, so visitors never need an API key.
-export const DUODUO_AI_MODEL = "@cf/meta/llama-3.2-3b-instruct";
+// Cloudflare retired the old 3B Llama route. Keep the public universe on a
+// current multilingual model so Chinese associations do not fall back to the
+// small deterministic safety net during normal use.
+export const DUODUO_AI_MODEL = "@cf/zai-org/glm-4.7-flash";
 
 export const DUODUO_PUBLIC_SYSTEM_PROMPT = `
 You are DUODUO AI, the public guide inside Duoduo's personal website.
