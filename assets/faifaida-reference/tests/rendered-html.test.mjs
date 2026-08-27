@@ -223,9 +223,9 @@ test("filters repeated AI associations before they reach the universe", async ()
       ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) },
       AI: {
         run: async () => ({
-          response: JSON.stringify({
+          choices: [{ message: { content: JSON.stringify({
             nodes: labels.map((label) => ({ label, bridge: `${label}与中心存在一条具体可解释的连接` })),
-          }),
+          }) } }],
         }),
       },
     },

@@ -61,11 +61,15 @@ function validatePublicOrigin(request: Request, url: URL) {
 }
 
 function extractAiText(result: unknown) {
-  return typeof result === "string"
-    ? result
-    : result && typeof result === "object" && "response" in result && typeof result.response === "string"
-      ? result.response
-      : "";
+  if (typeof result === "string") return result;
+  if (!result || typeof result !== "object") return "";
+  if ("response" in result && typeof result.response === "string") return result.response;
+  if ("choices" in result && Array.isArray(result.choices)) {
+    const first = result.choices[0] as { message?: { content?: unknown }; text?: unknown } | undefined;
+    if (typeof first?.message?.content === "string") return first.message.content;
+    if (typeof first?.text === "string") return first.text;
+  }
+  return "";
 }
 
 async function runAi(
